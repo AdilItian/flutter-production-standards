@@ -3,9 +3,11 @@
 #   scan_project.sh [project_root] > facts.md
 # Read-only. The AI interprets these facts into the gap report; this script judges nothing.
 set -u
+# Resolve this script's own folder BEFORE changing directory, so the helpers below always come
+# from the skill and never from the (possibly untrusted) project being scanned.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 cd "${1:-.}" || exit 2
 [ -f pubspec.yaml ] || { echo "no pubspec.yaml here"; exit 2; }
-HERE="$(cd "$(dirname "$0")" && pwd)"
 
 count() { grep -rE --include='*.dart' -e "$1" "${2:-lib}" 2>/dev/null | grep -vE '\.(g|freezed)\.dart:' | wc -l | tr -d ' '; }
 dep() { grep -qE "^[[:space:]]+$1:" pubspec.yaml && echo "yes" || echo "no"; }
@@ -70,10 +72,10 @@ fi
 echo
 echo "## Application identifiers (check_ids.sh)"
 echo '```'
-"$HERE/check_ids.sh" . 2>&1
+bash "$HERE/check_ids.sh" . 2>&1
 echo '```'
 echo
 echo "## Rule audit (audit.sh, first 80 lines)"
 echo '```'
-"$HERE/audit.sh" . 2>&1 | head -80
+bash "$HERE/audit.sh" . 2>&1 | head -80
 echo '```'
