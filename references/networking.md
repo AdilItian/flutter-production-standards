@@ -104,6 +104,79 @@ Failure classes and `Result` are defined in `error-handling.md`.
 
 Keep them as separate small classes in `core/network/interceptors/`.
 
+### Request gate (client-side throttling and resilience)
+
+The server enforces real rate limits; the gate keeps the app a good citizen and stops it from amplifying an outage. It wraps sends in `ApiClient`, before the retry interceptor, so retries also pass through it. Ask in discovery whether the backend publishes limits, and size the constants from them.
+
+| Part | Behavior |
+|---|---|
+| Concurrency cap | At most `ApiConstants.maxConcurrentRequests` in flight; extra requests queue |
+| Dedup | Identical in-flight **GET**s (method + URL + query) share one future |
+| Host cooldown | After a `429`, new requests to that host wait until `Retry-After` (or `defaultCooldown`) has passed |
+| Circuit breaker | After `breakerThreshold` consecutive 5xx or timeouts, fail fast with `ServerFailure` for `breakerWindow`, then let one request through |
+
+```dart
+// core/network/request_gate.dart  (sketch)
+class RequestGate {
+  RequestGate({required this.clock});
+  final DateTime Function() clock; // injected so tests control time
+  final Map<String, Future<Object?>> _inflight = {};
+  final Map<String, DateTime> _cooldownUntil = {};
+  final Map<String, DateTime> _openUntil = {};
+  final Map<String, int> _failures = {};
+  final Queue<Completer<void>> _queue = Queue();
+  int _active = 0;
+
+  Future<T> run<T>({required String host, String? dedupKey, required Future<T> Function() call}) async {
+    final now = clock();
+    final open = _openUntil[host];
+    if (open != null && now.isBefore(open)) throw ServerFailure('circuit open', null);
+    final cool = _cooldownUntil[host];
+    if (cool != null && now.isBefore(cool)) await Future<void>.delayed(cool.difference(now));
+
+    if (dedupKey != null && _inflight[dedupKey] case final Future<Object?> shared) return await shared as T;
+    final future = _limited(call);
+    if (dedupKey != null) _inflight[dedupKey] = future;
+    try {
+      final result = await future;
+      _failures[host] = 0;
+      return result;
+    } on RateLimitedFailure catch (f) {
+      _cooldownUntil[host] = clock().add(f.retryAfter ?? ApiConstants.defaultCooldown);
+      rethrow;
+    } on AppFailure catch (f) {
+      if (f is ServerFailure || f is TimeoutFailure) {
+        final n = _failures[host] = (_failures[host] ?? 0) + 1;
+        if (n >= ApiConstants.breakerThreshold) _openUntil[host] = clock().add(ApiConstants.breakerWindow);
+      }
+      rethrow;
+    } finally {
+      if (dedupKey != null) _inflight.remove(dedupKey);
+    }
+  }
+
+  Future<T> _limited<T>(Future<T> Function() call) async {
+    if (_active >= ApiConstants.maxConcurrentRequests) {
+      final waiter = Completer<void>();
+      _queue.add(waiter);
+      await waiter.future; // slot is handed over, _active unchanged
+    } else {
+      _active++;
+    }
+    try {
+      return await call();
+    } finally {
+      if (_queue.isNotEmpty) {
+        _queue.removeFirst().complete(); // hand the slot to the next waiter
+      } else {
+        _active--;
+      }
+    }
+  }
+}
+```
+Constants (`maxConcurrentRequests`, `defaultCooldown`, `breakerThreshold`, `breakerWindow`) live in `ApiConstants`. Tests: burst of requests respects the cap; dedup shares one call; a 429 pauses other requests to the host; the breaker opens, half-opens and closes.
+
 ## Datasource and repository
 
 ```dart
@@ -141,6 +214,15 @@ class ProductRepositoryImpl implements ProductRepository {
 }
 ```
 
+## How many clients, repositories and datasources
+
+- **One `ApiClient` per backend**, generic with no entity knowledge. A second one only for a second backend with different base URL or auth.
+- **One repository per aggregate root**, not per class. `Order` and its `OrderItem`s share one `OrderRepository`; `Product` and `Category` are separate if they are fetched and changed independently.
+- **One remote datasource per repository** (plus one local datasource when offline or caching is on). Datasources contain endpoint calls only; caching, mapping and policy live in the repository.
+- No repository for an entity with no data access. Don't merge unrelated entities into one repository just to save files.
+- **Generic `BaseRepository<T>` / `CrudDataSource<T>` are discouraged.** They fit uniform CRUD and hurt as soon as endpoints differ. Allow one only for a truly uniform CRUD API, recorded in an ADR.
+- Naming: the per-entity data class is a **datasource**. "Service" is reserved for cross-cutting interfaces (analytics, crash, push, connectivity, sync).
+
 ## Cancellation
 
 Search-as-you-type and screen exit must cancel in-flight work: pass a `CancelToken`, cancel it when the query changes or the state holder is disposed. Combine with a `AppDurations.debounce` debounce. Ignore stale responses in the state holder if cancellation is not possible.
@@ -176,6 +258,126 @@ Every cache has: a key, a TTL or invalidation trigger, a size bound, and is clea
 **Single source of truth:** when offline is on, the UI observes the local DB (a `Stream`), and the network only refreshes the DB. This removes "which copy is right?" bugs.
 
 Connectivity is a hint, not truth: a `connectionError` from a real request is authoritative. Do not block requests on a connectivity flag.
+
+**No-internet UX (all offline levels):**
+- A design-system `OfflineBanner` appears when `ConnectivityService` reports offline or a request fails with `OfflineFailure`; it is non-blocking and announces itself to screen readers.
+- Screens that failed because of `OfflineFailure` show `ErrorView` with retry (or stale content plus the banner). When connectivity returns, they refresh automatically once (listen to the connectivity stream in the state holder), and sync runs if offline writes are on.
+- Retry rules are in `error-handling.md`.
+
+## Offline-first repository (when "full offline with sync" is chosen)
+
+The repository changes shape: reads come from the local DB as a `Stream`, and writes return after the **local** write.
+
+```dart
+// domain/repositories/todo_repository.dart
+abstract interface class TodoRepository {
+  Stream<List<Todo>> watchAll();                 // from the local DB, always
+  Future<Result<Todo>> add(NewTodo draft);       // completes after the LOCAL write
+  Future<Result<void>> toggle(String id);
+  Future<Result<void>> delete(String id);        // soft delete (tombstone) until synced
+}
+
+// data/repositories/todo_repository_impl.dart
+class TodoRepositoryImpl implements TodoRepository {
+  TodoRepositoryImpl(this._local, this._outbox, this._sync, this._newId);
+  final TodoLocalDataSource _local;
+  final Outbox _outbox;
+  final SyncService _sync;
+  final String Function() _newId; // client-generated ids (uuid), injected
+
+  @override
+  Stream<List<Todo>> watchAll() => _local.watchAll().map((rows) => rows.map((r) => r.toEntity()).toList());
+
+  @override
+  Future<Result<Todo>> add(NewTodo draft) => guard(() async {
+        final id = _newId();
+        final row = await _local.insertPending(draft.toRow(id));
+        await _outbox.enqueue(entity: 'todo', entityId: id, op: OutboxOp.create, payload: draft.toDto(id).toJson());
+        _sync.requestPush(); // fire-and-forget, debounced by the entity's policy
+        return row.toEntity();
+      });
+  // local write + outbox enqueue happen in ONE database transaction
+}
+```
+The local write and the outbox enqueue must be in a single transaction, or a crash between them loses the change.
+
+### Local schema
+
+- Every synced table has: `id` (client-generated), `sync_state` (`synced | pending | failed | conflict`), `updated_at`, `server_version` (or etag), `deleted_at` (tombstone).
+- `outbox`: `id` (autoincrement, defines order), `entity`, `entity_id`, `op` (`create | update | delete`), `payload` (json), `idempotency_key` (unique), `status` (`pending | inflight | failed`), `attempts`, `last_error`, `created_at`, `next_attempt_at`.
+- `sync_state_meta`: per entity `last_synced_at` and the server `cursor`.
+
+### Sync engine
+
+`SyncService` (an interface in `core/services`, implementation in `data/sync`) exposes `syncAll({force})`, `syncNow(entity)`, `requestPush()` and a `Stream<SyncStatus>`. It is single-flight (a mutex), so triggers never overlap.
+
+**Triggers:** app start, connectivity regained, app resumed (`pullOnResume`), after a local write (`requestPush`, debounced), periodic while in the foreground, pull-to-refresh, and `syncNow`.
+
+**Order: push, then pull.**
+
+1. **Push** the outbox in `id` order. Coalesce redundant ops on the same record (create + update → create; anything + delete → delete). For each op: send with its idempotency key.
+   - Success → remove from the outbox; write back server id/version; set the row `synced`.
+   - Transient failure (offline, timeout, 5xx, 429) → `attempts++`, `next_attempt_at` = exponential backoff with jitter; stop after `maxRetries`, then mark `failed`.
+   - Permanent failure (4xx other than 429) → mark the op and row `failed` with the reason, **skip later ops of the same record** (keep order per record) but continue with unrelated records.
+2. **Pull** each entity whose policy says it is due (`staleAfter`, `pullInterval`, `force`): request changes since the stored cursor if the backend supports deltas, otherwise refetch. In one transaction:
+   - Record has **no** pending/inflight local change → apply the server version (upsert, or delete for a tombstone).
+   - Record **has** a pending local change → run that entity's conflict policy.
+   - Save the new cursor only after the transaction commits.
+
+**Conflict policies** (decided with the user per entity and recorded in the ADR; never guessed):
+
+| Policy | Behavior | Fits |
+|---|---|---|
+| `serverWins` | Discard the local pending change | Reference data, admin-managed content |
+| `clientWins` | Re-send the local change over the server version | Personal settings |
+| `lastWriteWins` | Compare `updated_at` | Low-stakes data, with clock skew accepted |
+| `merge` | Field-level merge through an entity-specific function | Documents, profiles |
+| `askUser` | Mark `conflict`, surface both versions in the UI | High-value data |
+
+### Per-entity sync policy
+
+Developers configure sync per entity in one file, and every field has a default:
+
+```dart
+// core/constants/sync_defaults.dart
+abstract final class SyncDefaults {
+  static const Duration pullInterval = Duration(minutes: 15);
+  static const Duration staleAfter = Duration(minutes: 5);
+  static const Duration pushDebounce = Duration(seconds: 2);
+  static const int maxRetries = 5;
+}
+
+// data/sync/sync_policies.dart
+class SyncPolicy {
+  const SyncPolicy({
+    this.pullInterval = SyncDefaults.pullInterval, // periodic refresh while the app is open
+    this.staleAfter = SyncDefaults.staleAfter,     // pull on read if older than this
+    this.pushDebounce = SyncDefaults.pushDebounce, // batch quick successive writes
+    this.pullOnResume = true,
+    this.wifiOnly = false,
+    this.maxRetries = SyncDefaults.maxRetries,
+    this.conflict = ConflictPolicy.serverWins,
+  });
+  // fields omitted for brevity
+}
+
+const syncPolicies = <String, SyncPolicy>{
+  'todo': SyncPolicy(conflict: ConflictPolicy.lastWriteWins),
+  'catalog': SyncPolicy(pullInterval: Duration(hours: 6), wifiOnly: true),
+  'settings': SyncPolicy(pushDebounce: Duration.zero, conflict: ConflictPolicy.clientWins),
+};
+```
+The default numbers are starting points, not measured values. Confirm them with the user in discovery (one grouped question, only when sync is on) and record the result in the ADR. Periodic pulls run in the foreground only. Background sync uses WorkManager (Android) / BGTaskScheduler (iOS) with a longer minimum interval, because neither guarantees exact timing. Pull-to-refresh and `syncNow` bypass the interval. Retry backoff is separate from the interval.
+
+### Status in the UI
+
+`Stream<SyncStatus>`: `idle`, `syncing`, `pending(count)`, `failed(count)`, `offline`. The design system provides `SyncStatusChip`, and `failed` items open a screen where the user can retry or discard. Show "last synced" times on read-cache screens.
+
+### Other rules
+
+- Wipe all synced tables, the outbox and cursors on sign-out. Never carry one account's data to another.
+- Database migrations are tested with real old-version fixtures; never drop a non-empty outbox in a migration.
+- Tests: offline writes, outbox replay after restart, coalescing, each conflict policy, partial batch failure, crash between local write and push, migration with pending ops.
 
 ## Firebase / Supabase variants
 

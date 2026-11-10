@@ -17,7 +17,7 @@ These hold in every project and every tier. If the user asks to break one, state
 4. **Components before screens.** Never build a screen straight from a design. Inventory, extract, then compose.
 5. **No magic values.** Colors, text styles, spacing, radii, durations, sizes, asset paths, route paths, storage keys, API paths and user-facing strings come from a named source.
 6. **No hardcoded user-facing strings.** All go through gen-l10n.
-7. **Every async screen renders four states**: loading, content, empty, error.
+7. **Every async screen renders four states**: loading, content, empty, error, and uses the one shared pattern for loading, success and error feedback (`forms-and-feedback.md`).
 8. **Errors are values at the repository boundary.** Repositories return `Result<T>`; nothing leaks a raw `DioException`.
 9. **Review gate before delivery.** Run `scripts/audit.sh`, walk `references/code-review-checklist.md`, fix, repeat. Do not present work that fails.
 10. **Explain every architectural decision** as `Decision / Why / Trade-off`. Never just assert.
@@ -46,6 +46,7 @@ Rules for asking:
 - If the user says "you decide" / "defaults", pick the recommended option, and record it in the ADR as `delegated`. That is a recorded decision, not an assumption.
 - Always ask "What languages should this app support?" (and whether any are RTL). Never default to English-only silently.
 - Run `flutter --version` to detect the installed Flutter/Dart rather than asking, then confirm.
+- Ask the follow-ups at the end of the questionnaire (rate limits, sync timing and conflict policy, background sync) only when an earlier answer triggers them.
 - Stop and re-ask only when an answer is contradictory (e.g. "offline-first" with "no local database").
 
 Write the answers to `docs/decisions/0001-project-foundations.md` using `templates/adr-template.md`.
@@ -79,8 +80,8 @@ Create it with `scripts/new_feature.sh <name>`. Then, in order:
 
 1. **domain**: entities, repository interface (and a use case only if it earns one, see architecture.md).
 2. **data**: DTOs, mappers, datasource, repository implementation, `Result` wrapping. See `references/data-models.md`.
-3. **state**: controller/notifier/bloc with sealed or async state. See `references/state-management.md`.
-4. **presentation**: screens composed of design-system components and feature widgets.
+3. **state**: a controller/notifier/bloc **only if** the "Do I need a controller?" decision order in `references/state-management.md` says so (many screens need none). Use sealed or async state.
+4. **presentation**: screens composed of design-system components and feature widgets. Forms, loading and success/error feedback follow `references/forms-and-feedback.md`.
 5. **route**: feature-owned route declaration, registered in the app router.
 6. **strings**: ARB keys for every visible string, in every supported locale.
 7. **tests**: written alongside, per `references/testing.md`.
@@ -112,6 +113,8 @@ Read only what the current step needs. Do not preload all of them.
 | Add a controller / notifier / bloc / GetX controller | `references/state-management.md` |
 | Define a model, parse JSON, map between layers | `references/data-models.md` |
 | Handle errors, logging, retries, user-facing error text | `references/error-handling.md` |
+| Build a form, validation, loading indicator, or any success/info/warning message | `references/forms-and-feedback.md` |
+| Add offline support, sync, request throttling, or decide how many repositories/datasources to make | `references/networking.md` |
 | Name something, split a file, set lint rules | `references/code-standards.md` |
 | Touch lists, images, rebuild-heavy screens, startup | `references/performance.md` |
 | Write tests, set up test folders, CI test jobs | `references/testing.md` |

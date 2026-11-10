@@ -56,3 +56,7 @@ Copy this table and fill it from the questionnaire.
 | Design source | | |
 | Accessibility target | | |
 | Compliance | | |
+| Backend rate limits / request gate values | | |
+| Sync policy per entity (interval, stale-after, wifi-only) | | |
+| Conflict policy per entity | | |
+| Generic repository base class used? (default: no) | | |

@@ -116,6 +116,15 @@ flutter test --coverage
 7. Integration tests on nightly / release branches
 8. Translation parity check (gen-l10n untranslated report)
 
+## Offline, sync and throttling tests (when those features exist)
+
+- Fake `ConnectivityService` and an injected clock; never sleep.
+- Repository: a local write succeeds offline, appears in the `watchAll()` stream, and enqueues one outbox op in the same transaction.
+- Sync: push-then-pull order; coalescing; transient failure backs off and retries; permanent failure marks `failed` and does not block unrelated records; each conflict policy; stop and resume after a simulated crash mid-sync; sign-out wipes everything.
+- Policy: an entity without an override gets `SyncDefaults`; reading stale data triggers a pull.
+- `RequestGate`: concurrency cap, GET dedup, host cooldown after a 429, breaker open/half-open/close.
+- Forms and feedback: see `forms-and-feedback.md`.
+
 ## TDD for bugs
 
 Reproduce the bug with a failing test at the lowest layer that exhibits it, then fix. Keep the test.

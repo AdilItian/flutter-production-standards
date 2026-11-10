@@ -30,6 +30,9 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] No pass-through use cases; no unused abstractions; no empty ritual folders
 - [ ] Each class has one reason to change
 - [ ] Decisions with trade-offs recorded in an ADR if they deviate from defaults
+- [ ] Every state holder passes the "Do I need a controller?" test; no pass-through controllers, no two holders for the same data
+- [ ] One `ApiClient` per backend; one repository per aggregate root; no generic `BaseRepository<T>` without an ADR
+- [ ] If offline-first: reads come from the local DB stream; local write and outbox enqueue share a transaction; conflict and sync policy per entity recorded
 
 ## B. Models and mapping (Blocker)
 
@@ -44,6 +47,10 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] Screen composed from components; `build` short; no `_buildX()` widget helper methods
 - [ ] Loading, content, empty, error (and offline) states all rendered
 - [ ] Side effects not triggered from `build`
+- [ ] Loading uses the standard pattern (skeleton / refresh keeps data / in-button spinner), never a bare `CircularProgressIndicator`
+- [ ] Success, info and warning feedback go through `AppFeedback` with ARB messages; no ad hoc `SnackBar`
+- [ ] Forms follow the validation timing rules, use typed `FieldError`s, keep submit enabled until submitting, focus the first error, preserve input on failure
+- [ ] Offline and retry UX present: `OfflineBanner`, retry only for retryable failures, auto-refresh on reconnect
 
 ## D. No magic values (Blocker)
 

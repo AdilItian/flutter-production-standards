@@ -5,27 +5,17 @@ A Claude Code / Agent Skill that makes an AI behave like a senior Flutter archit
 ## Install
 
 ```bash
-# project-level
-cp -r flutter-production-standards .claude/skills/
-# or user-level
-cp -r flutter-production-standards ~/.claude/skills/
-chmod +x flutter-production-standards/scripts/*.sh
+# Skills.sh CLI (works with Claude Code, Cursor, Codex, Copilot, Gemini CLI and others)
+npx skills add AdilItian/flutter-production-standards
+
+# or manually, for Claude Code
+git clone https://github.com/AdilItian/flutter-production-standards ~/.claude/skills/flutter-production-standards
+chmod +x ~/.claude/skills/flutter-production-standards/scripts/*.sh
 ```
 
 Then ask for any Flutter work ("create a food-delivery app", "add a cart feature", "build this Figma screen", "review my project").
 
-## Publish and use
-
-```bash
-# publish (once)
-cd flutter-production-standards && git init && git add . && git commit -m "Flutter production standards skill"
-gh repo create flutter-production-standards --public --source=. --push
-
-# install: Skills.sh (confirm the command on skills.sh)
-npx skills add AdilItian/flutter-production-standards
-# or manually
-git clone https://github.com/AdilItian/flutter-production-standards ~/.claude/skills/flutter-production-standards
-```
+## Use
 
 Restart Claude Code, then just ask for Flutter work; the skill triggers from its description.
 On a new app the skill copies `audit.sh` and `new_feature.sh` into the project's `scripts/`. To audit any project without that:
@@ -49,7 +39,8 @@ flutter-production-standards/
 │   ├── routing.md                    ├── performance.md
 │   ├── localization.md               ├── testing.md
 │   ├── networking.md                 ├── accessibility.md
-│   ├── security.md                   └── code-review-checklist.md
+│   ├── security.md                   ├── forms-and-feedback.md
+│   └── code-review-checklist.md
 ├── templates/
 │   ├── requirements-questionnaire.md # every discovery question, options, defaults
 │   ├── adr-template.md               # decision record + ADR-0001 foundations table
@@ -75,6 +66,16 @@ flutter-production-standards/
 | Share common widgets early | Rule of two for feature code; design-system atoms exempt | Premature sharing fits one use case badly |
 | Two exception/failure hierarchies | One sealed `AppFailure` + `Result` | They mirror each other 1:1 in practice |
 | Many tiers of structure | Tier S/M/L chosen in discovery | A monorepo for a solo app costs more than it returns |
+
+## What the skill enforces for common app behavior
+
+| Practice | Where |
+|---|---|
+| Consistent loading, success and error feedback | `forms-and-feedback.md`, `error-handling.md`, `ui-guidelines.md` |
+| Form validation | `forms-and-feedback.md` |
+| No internet, retries, request throttling | `networking.md`, `error-handling.md` |
+| Offline-first, sync and conflict handling | `networking.md` |
+| One controller only when needed | `state-management.md` |
 
 ## Known limits
 

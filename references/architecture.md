@@ -34,6 +34,24 @@ Read when: choosing a tier, deciding whether a feature needs a domain layer or u
 
 **Why layers point inward:** the stable thing (business rules) must not depend on the volatile things (HTTP client, JSON shape, widget library). Swapping REST for GraphQL, or Dio for `http`, should touch only `data`.
 
+## How this relates to MVVM
+
+This is MVVM inside a layered, feature-first structure, which matches Flutter's own architecture guidance (UI layer with views and view models, optional domain layer, data layer).
+
+| MVVM | Here |
+|---|---|
+| **View** | Screens and widgets in `presentation/`: render state, forward events |
+| **ViewModel** | The **state holder**: Riverpod notifier, Bloc/Cubit, or GetX controller. Holds screen state, calls repositories, exposes immutable state |
+| **Model** | `domain/` (entities, repository interfaces) and `data/` (DTOs, datasources, repository implementations) |
+
+Differences from textbook MVVM:
+- MVVM only describes presentation. The domain and data layers and the dependency rule add what MVVM leaves open.
+- A ViewModel is optional per screen (`state-management.md`, "Do I need a controller?").
+- The ViewModel's shape follows the chosen state tool; the skill does not force a `ViewModel` base class.
+- ViewModels receive `Result<T>` from repositories and never catch transport exceptions.
+
+In this skill, "state holder" always means the ViewModel.
+
 ## Choose a tier (decide in discovery, record in the ADR)
 
 | | Tier S: small | **Tier M: default** | Tier L: multi-team |

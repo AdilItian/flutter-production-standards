@@ -29,6 +29,22 @@ If the user has chosen one, use it. If they ask for a recommendation, apply this
 
 Derive, don't duplicate: `isEmpty`, totals, filtered lists are computed from state, not stored.
 
+## Do I need a controller? (decide before creating one)
+
+Go in order and stop at the first yes. A state holder (controller, notifier, Bloc/Cubit, GetX controller) is the ViewModel of a screen, and it must earn its place.
+
+1. **State is visual and owned by one widget** (text field, tab index, animation, focus) → no controller; use a `StatefulWidget`.
+2. **The data already lives in an existing state holder and this screen only reads it** (current user, theme, cart count) → reuse it; read with `select`.
+3. **The screen is static or derived only from route parameters** → no controller.
+4. **The screen loads data, submits actions, or holds state that must survive rebuilds** → create **one** controller for that screen.
+5. **Two or more screens must share and change the same state** → one shared controller in `shared/providers`, not one per screen.
+
+Limits:
+- One controller per screen, not per widget. Split a screen into two only for unrelated concerns (e.g. a list plus an independent filter panel).
+- Never two controllers holding the same data; they will disagree.
+- A controller that only forwards a repository call and adds no state or logic is deleted; the widget reads the repository-backed provider directly. (Same test as use cases in `architecture.md`.)
+- Record the answer for non-obvious screens in a one-line comment on the controller: why it exists.
+
 ## State shape
 
 - Immutable. Equality by value (`freezed`, `equatable`, or hand-written with records).

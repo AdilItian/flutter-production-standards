@@ -43,6 +43,14 @@ Format to the user, per round:
 | 19 | Accessibility target? | a) WCAG AA ★ b) AAA for key flows c) basic | Contrast checks, text scaling tests |
 | 20 | Compliance/sensitivity? | a) none b) personal data (GDPR/CCPA) c) payments d) health/finance | Cert pinning, consent screens, logging redaction, storage rules |
 
+## Follow-ups (ask only when the earlier answer triggers them)
+
+| # | Asked when | Question | Options | Changes |
+|---|---|---|---|---|
+| 21 | Q7 is REST/GraphQL | Does the backend publish rate limits (requests per second/minute, `Retry-After`)? | a) yes (give numbers) b) no / unknown ★ | `RequestGate` constants |
+| 22 | Q9 = full offline | For each synced entity: how fresh must data be, and who wins on conflict? One grouped question. | defaults ★ (15 min pull, 5 min stale-after, server wins) or per-entity values; conflict: server wins / client wins / last write wins / merge / ask user | `SyncPolicy` per entity, conflict policy in the ADR |
+| 23 | Q9 = full offline | Should sync run in the background when the app is closed? | a) foreground only ★ b) background (WorkManager / BGTaskScheduler, timing not guaranteed) | Platform setup, battery impact |
+
 ## Conflict checks (run before writing the ADR)
 
 - Q9 = full offline and Q10 = none → ask which database.
