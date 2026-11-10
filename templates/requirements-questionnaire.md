@@ -12,7 +12,7 @@ Format to the user, per round:
 
 | # | Question | Options | Changes |
 |---|---|---|---|
-| 1 | App name, and bundle/application ID? | free text (e.g. `com.acme.shop`) | Project name, package ids, flavors |
+| 1 | App name, and your organization's reverse-DNS prefix (a domain you own, e.g. `com.acme`)? I derive one application id for Android/iOS/macOS/Linux from it and show it for confirmation. | free text. No domain: `io.github.<username>` ★. Never `com.example` | Project name, ids on every platform, flavors suffixes, Firebase/OAuth/deep-link config (`project-identity.md`) |
 | 2 | What does the app do, and who uses it? List the 3-5 core user flows. | free text | Feature list, build order, tier |
 | 3 | Target platforms? | a) iOS+Android ★ b) +Web c) +Desktop d) single platform | Plugins allowed, responsive scope, secure-storage choice |
 | 4 | Flutter/Dart version? | Detected: `flutter --version`. Confirm or pin. | Language features, package compatibility |

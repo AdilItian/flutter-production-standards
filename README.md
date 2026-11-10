@@ -40,14 +40,18 @@ flutter-production-standards/
 │   ├── localization.md               ├── testing.md
 │   ├── networking.md                 ├── accessibility.md
 │   ├── security.md                   ├── forms-and-feedback.md
+│   ├── project-identity.md           ├── existing-project-audit.md
 │   └── code-review-checklist.md
 ├── templates/
 │   ├── requirements-questionnaire.md # every discovery question, options, defaults
 │   ├── adr-template.md               # decision record + ADR-0001 foundations table
 │   ├── design-analysis.md            # design → tokens → components, before any screen
+│   ├── gap-report.md                 # baseline audit report for existing projects
 │   └── analysis_options.yaml
 └── scripts/
     ├── audit.sh                      # enforces the rules mechanically (grep-based)
+    ├── check_ids.sh                  # validates app ids on every platform; --suggest derives a default
+    ├── scan_project.sh               # read-only facts about an existing project (feeds the gap report)
     └── new_feature.sh                # feature skeleton
 ```
 
@@ -76,6 +80,8 @@ flutter-production-standards/
 | No internet, retries, request throttling | `networking.md`, `error-handling.md` |
 | Offline-first, sync and conflict handling | `networking.md` |
 | One controller only when needed | `state-management.md` |
+| Valid, consistent app ids on every platform, with a default suggestion | `project-identity.md`, `scripts/check_ids.sh` |
+| Existing project: gap analysis written to `docs/skill-audit/` and the user notified | `existing-project-audit.md`, `templates/gap-report.md` |
 
 ## Known limits
 

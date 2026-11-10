@@ -34,6 +34,9 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] One `ApiClient` per backend; one repository per aggregate root; no generic `BaseRepository<T>` without an ADR
 - [ ] If offline-first: reads come from the local DB stream; local write and outbox enqueue share a transaction; conflict and sync policy per entity recorded
 
+- [ ] `scripts/check_ids.sh` passes: valid ids on every platform, no `com.example`, ids consistent, flavor suffixes set, Firebase config matches
+- [ ] On an existing project: a baseline gap report exists in `docs/skill-audit/` and the user was notified; no app id, signing or release config was changed without approval
+
 ## B. Models and mapping (Blocker)
 
 - [ ] No `Map<String, dynamic>`/`dynamic` outside DTO parsing

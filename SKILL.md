@@ -29,12 +29,20 @@ Look at the working directory before talking.
 | Signal | Mode |
 |---|---|
 | No `pubspec.yaml` | **New app** |
-| `pubspec.yaml` exists, user asks for a feature | **Add feature** |
+| `pubspec.yaml` exists, user asks for a feature | **Add feature** (after the baseline audit below, if none exists) |
 | User asks to fix/restructure/migrate | **Refactor** |
 | User asks "review", "audit", "is this good" | **Review** (run `scripts/audit.sh`, report, change nothing unless asked) |
 | User supplies a design image/link | **Design to UI** (also follow Step 5) |
 
 For any mode except New app: read `pubspec.yaml`, `analysis_options.yaml`, `lib/` top two levels, and any `docs/decisions/`. **Existing conventions win** over this skill's defaults unless the user asks for migration. Skip every discovery question the repo already answers, and say what you inferred.
+
+**Baseline audit on first contact with an existing project.** If a `pubspec.yaml` exists and there is no report in `docs/skill-audit/`, do this *before* the requested task (read `references/existing-project-audit.md`):
+1. Run `scripts/scan_project.sh` (stack, structure, security settings, application ids, `audit.sh` summary), plus `flutter analyze` / `flutter test` where possible.
+2. Write the findings to `docs/skill-audit/gap-report-YYYY-MM-DD.md` from `templates/gap-report.md`. This covers application ids on every platform, architecture gaps, security, accessibility, performance, tests and CI, with severity, evidence, fix and effort.
+3. **Notify the user** with the short summary format in that reference: file path, counts by severity, top issues, ids status, at most two decisions needed.
+4. Change no source code during the audit. Continue the original task only after the user answers, unless the task does not touch any Blocker.
+
+If a report already exists, read it, update statuses instead of starting over, and do not re-raise findings the user marked `accepted`.
 
 ## Step 1: Discovery (new apps, and features that change the stack)
 
@@ -66,7 +74,7 @@ For Add feature / Refactor, a 5-line plan is enough. Wait for approval on New ap
 
 Order matters: each step removes the excuse for hardcoding in the next.
 
-1. Project, flavors/environments, `analysis_options.yaml` (from `templates/`). **Copy `scripts/audit.sh` and `scripts/new_feature.sh` from this skill's folder into the project's `scripts/`** (`chmod +x`) so CI and teammates without the skill can run them, and add `scripts/audit.sh` to the CI pipeline (after `flutter analyze`). In later steps, `scripts/...` means the project copy; if it is missing, run the skill's copy with the project root as the argument.
+1. Project, flavors/environments, `analysis_options.yaml` (from `templates/`). **Application ids** (`references/project-identity.md`): take the organization domain from discovery, derive the default with `scripts/check_ids.sh --suggest <org> "<App Name>"`, show one proposed id for all selected platforms for confirmation, apply it (`flutter create --org ...` or edit the platform files, with per-flavor suffixes), then run `scripts/check_ids.sh`. Never use `com.example.*`. **Copy `scripts/audit.sh`, `scripts/check_ids.sh` and `scripts/new_feature.sh` from this skill's folder into the project's `scripts/`** (`chmod +x`) so CI and teammates without the skill can run them, and add `scripts/audit.sh` to the CI pipeline (after `flutter analyze`). In later steps, `scripts/...` means the project copy; if it is missing, run the skill's copy with the project root as the argument.
 2. `core/`: config, error (`AppFailure`, `Result`), logging, network client, storage. See `references/networking.md`, `references/error-handling.md`, `references/security.md`.
 3. `design_system/tokens` and `design_system/theme`, light and dark. See `references/theming-and-constants.md`.
 4. `l10n/` with the confirmed languages. See `references/localization.md`.
@@ -105,6 +113,8 @@ Read only what the current step needs. Do not preload all of them.
 |---|---|
 | Choose tier/layers, decide domain vs. no domain, wire DI | `references/architecture.md` |
 | Create or place any file or folder | `references/folder-structure.md` |
+| Create a new app, or any message about bundle id / applicationId / package name | `references/project-identity.md` |
+| First contact with an existing project, or a review/health-check request | `references/existing-project-audit.md` |
 | Build any widget, component, or screen; consume a design | `references/ui-guidelines.md` |
 | Create colors, text styles, spacing, radii, assets, themes, env/API constants | `references/theming-and-constants.md` |
 | Add navigation, deep links, auth guards | `references/routing.md` |

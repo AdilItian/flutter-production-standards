@@ -36,7 +36,10 @@ Copy this table and fill it from the questionnaire.
 
 | Topic | Choice | Decided by |
 |---|---|---|
-| App name / ID | | |
+| App name | | |
+| Organization prefix (reverse-DNS) | | |
+| Application ids (Android / iOS / macOS / Linux) and flavor suffixes | | |
+| Published already? (ids frozen if yes) | | |
 | Purpose / core flows | | |
 | Platforms | | |
 | Flutter / Dart version | | |
