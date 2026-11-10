@@ -105,6 +105,10 @@ Follow the procedure in `references/ui-guidelines.md`. In short: analyze the des
 3. Any failure: refactor, then re-run from 1. Cap at 3 loops; if something still fails, report it plainly with why.
 4. Final message: what was built, decisions made (with reasoning), what was verified, what was *not* verified (e.g. "not run on a physical iOS device"), follow-ups.
 
+## Slash commands
+
+Companion skills give the user direct commands: `/flutter-new-app`, `/flutter-new-feature`, `/flutter-design-to-ui`, `/flutter-baseline`, `/flutter-audit`, `/flutter-review`, `/flutter-ids`, `/flutter-help`. Each one runs a part of this workflow and reads this skill's files. If the user seems unsure what to do next, mention the matching command in one line.
+
 ## Which reference to read, and when
 
 Read only what the current step needs. Do not preload all of them.

@@ -5,20 +5,38 @@ A Claude Code / Agent Skill that makes an AI behave like a senior Flutter archit
 ## Install
 
 ```bash
-# Skills.sh CLI (works with Claude Code, Cursor, Codex, Copilot, Gemini CLI and others)
+# Skills.sh CLI (works with Claude Code, Cursor, Codex, Copilot, Gemini CLI and others).
+# Choose ALL skills when prompted: the slash commands need the main skill next to them.
 npx skills add AdilItian/flutter-production-standards
 
 # or manually, for Claude Code
-git clone https://github.com/AdilItian/flutter-production-standards ~/.claude/skills/flutter-production-standards
+git clone https://github.com/AdilItian/flutter-production-standards /tmp/fps
+mkdir -p ~/.claude/skills && cp -R /tmp/fps/skills/* ~/.claude/skills/
 chmod +x ~/.claude/skills/flutter-production-standards/scripts/*.sh
 ```
 
-Then ask for any Flutter work ("create a food-delivery app", "add a cart feature", "build this Figma screen", "review my project").
+Restart Claude Code after installing.
+
+## Slash commands
+
+Type `/` in Claude Code to see them. `/flutter-help` prints this table.
+
+| Command | Use it to |
+|---|---|
+| `/flutter-new-app [name]` | Start a new app: discovery questions, plan, foundation, app ids |
+| `/flutter-new-feature <name> [purpose]` | Add a feature slice: domain, data, state, UI, route, strings, tests |
+| `/flutter-design-to-ui <design> [screen]` | Build a screen from a design: analysis, components first, then the screen |
+| `/flutter-baseline` | Audit an existing project and write a gap report to `docs/skill-audit/` |
+| `/flutter-audit [fix]` | Run the rule audit (magic values, hardcoded strings, layering, file sizes) |
+| `/flutter-review [range or path] [fix]` | Review changes against the full checklist |
+| `/flutter-ids [suggest <org> "App Name"]` | Validate application ids on every platform, or suggest a default |
+| `/flutter-production-standards` | Open-ended: apply the standards to whatever you ask |
+
+The commands are only started by you (they never trigger on their own). The main skill still triggers automatically when you ask for Flutter work in plain language. Slash commands are a Claude Code feature; in other agents the same skills load by name or description.
 
 ## Use
 
-Restart Claude Code, then just ask for Flutter work; the skill triggers from its description.
-On a new app the skill copies `audit.sh` and `new_feature.sh` into the project's `scripts/`. To audit any project without that:
+On a new app the skill copies `audit.sh`, `check_ids.sh` and `new_feature.sh` into the project's `scripts/`. To audit any project without that:
 `~/.claude/skills/flutter-production-standards/scripts/audit.sh <project_root>`
 
 CI step (GitHub Actions example), after `flutter analyze`:
@@ -29,31 +47,37 @@ CI step (GitHub Actions example), after `flutter analyze`:
 ## Layout
 
 ```
-flutter-production-standards/
-├── SKILL.md                          # workflow + routing (kept short, loaded every time)
-├── references/                       # loaded only when the current step needs them
-│   ├── architecture.md               ├── state-management.md
-│   ├── folder-structure.md           ├── data-models.md
-│   ├── ui-guidelines.md              ├── error-handling.md
-│   ├── theming-and-constants.md      ├── code-standards.md
-│   ├── routing.md                    ├── performance.md
-│   ├── localization.md               ├── testing.md
-│   ├── networking.md                 ├── accessibility.md
-│   ├── security.md                   ├── forms-and-feedback.md
-│   ├── project-identity.md           ├── existing-project-audit.md
-│   └── code-review-checklist.md
-├── templates/
-│   ├── requirements-questionnaire.md # every discovery question, options, defaults
-│   ├── adr-template.md               # decision record + ADR-0001 foundations table
-│   ├── design-analysis.md            # design → tokens → components, before any screen
-│   ├── gap-report.md                 # baseline audit report for existing projects
-│   └── analysis_options.yaml
-└── scripts/
-    ├── audit.sh                      # enforces the rules mechanically (grep-based)
-    ├── check_ids.sh                  # validates app ids on every platform; --suggest derives a default
-    ├── scan_project.sh               # read-only facts about an existing project (feeds the gap report)
-    └── new_feature.sh                # feature skeleton
+skills/                               # the repo publishes several skills
+├── flutter-production-standards/     # the main skill
+│   ├── SKILL.md                      # workflow + routing (kept short, loaded every time)
+│   ├── references/                   # loaded only when the current step needs them
+│   │   ├── architecture.md           ├── state-management.md
+│   │   ├── folder-structure.md       ├── data-models.md
+│   │   ├── ui-guidelines.md          ├── error-handling.md
+│   │   ├── theming-and-constants.md  ├── code-standards.md
+│   │   ├── routing.md                ├── performance.md
+│   │   ├── localization.md           ├── testing.md
+│   │   ├── networking.md             ├── accessibility.md
+│   │   ├── security.md               ├── forms-and-feedback.md
+│   │   ├── project-identity.md       ├── existing-project-audit.md
+│   │   └── code-review-checklist.md
+│   ├── templates/
+│   │   ├── requirements-questionnaire.md  # every discovery question, options, defaults
+│   │   ├── adr-template.md                # decision record + ADR-0001 foundations table
+│   │   ├── design-analysis.md             # design to tokens to components, before any screen
+│   │   ├── gap-report.md                  # baseline audit report for existing projects
+│   │   └── analysis_options.yaml
+│   └── scripts/
+│       ├── audit.sh                  # enforces the rules mechanically (grep-based)
+│       ├── check_ids.sh              # validates app ids on every platform; --suggest derives a default
+│       ├── scan_project.sh           # read-only facts about an existing project
+│       └── new_feature.sh            # feature skeleton
+├── flutter-new-app/        flutter-new-feature/     flutter-design-to-ui/
+├── flutter-baseline/       flutter-audit/           flutter-review/
+└── flutter-ids/            flutter-help/            # thin slash-command skills (one SKILL.md each)
 ```
+
+Why a `skills/` folder: the Skills.sh installer lets a `SKILL.md` at the repo root hide every skill below it. Publishing the main skill plus its commands from one repo therefore requires them all to live under `skills/`.
 
 ## Design decisions (what is different from the original brief, and why)
 
