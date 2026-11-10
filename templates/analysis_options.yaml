@@ -1,0 +1,36 @@
+# Copy to the project root. Requires very_good_analysis in dev_dependencies.
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/gen/**"
+    - "lib/l10n/generated/**"
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    missing_return: error
+    missing_required_param: error
+    invalid_annotation_target: ignore # freezed + json_serializable
+
+linter:
+  rules:
+    # Enforce architecture-friendly habits
+    always_use_package_imports: true # relative imports hide layer violations
+    avoid_print: true
+    avoid_dynamic_calls: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_final_locals: true
+    unawaited_futures: true
+    use_build_context_synchronously: true
+    use_key_in_widget_constructors: true
+    sized_box_for_whitespace: true
+    use_colored_box: true
+    avoid_unnecessary_containers: true
+    directives_ordering: true
+    # Too noisy for app code; enable for published packages
+    public_member_api_docs: false
