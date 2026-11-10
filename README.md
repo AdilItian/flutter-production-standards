@@ -22,9 +22,9 @@ cd flutter-production-standards && git init && git add . && git commit -m "Flutt
 gh repo create flutter-production-standards --public --source=. --push
 
 # install: Skills.sh (confirm the command on skills.sh)
-npx skills add <you>/flutter-production-standards
+npx skills add AdilItian/flutter-production-standards
 # or manually
-git clone https://github.com/<you>/flutter-production-standards ~/.claude/skills/flutter-production-standards
+git clone https://github.com/AdilItian/flutter-production-standards ~/.claude/skills/flutter-production-standards
 ```
 
 Restart Claude Code, then just ask for Flutter work; the skill triggers from its description.
