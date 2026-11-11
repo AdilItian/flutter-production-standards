@@ -17,6 +17,17 @@ chmod +x ~/.claude/skills/flutter-production-standards/scripts/*.sh
 
 Restart Claude Code after installing.
 
+## Update
+
+```bash
+cd your-project
+npx skills update -p     # all 9 skills in this project (use -g for your global skills)
+```
+Run it **without skill names**. `npx skills update flutter-production-standards` refreshes only the main skill, and the eight command skills would stay on the old version while reading the new references. `-g` updates every global skill you have installed, not only these, so prefer `-p` unless you installed globally. Restart Claude Code afterwards.
+
+`update` does not touch files the skill copied into your project. Refresh the scripts with:
+`cp .claude/skills/flutter-production-standards/scripts/*.sh scripts/` (the path may be `.agents/skills/...` depending on your setup). Review your own `CLAUDE.md` by hand before replacing it.
+
 ## Slash commands
 
 Type `/` in Claude Code to see them. `/flutter-help` prints this table.
