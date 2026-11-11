@@ -61,7 +61,8 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] No literal colors, font sizes, spacing, radii, durations, sizes in features/shared/app
 - [ ] Widgets use theme roles (`colorScheme`, `textTheme`, theme extension), not raw `AppColors` palette
 - [ ] Asset paths only via `AppAssets`/generated; icons via `AppIcons` or theme
-- [ ] Route paths/names only via typed routes or `AppRoutes`; no hardcoded navigation strings
+- [ ] Route names/paths only in `AppRoutes`; every route has a `GetPage` in `AppPages`; screens navigate through `AppNavigation`, never `Get.toNamed('/…')` or other string literals
+- [ ] Route parameters are ids, validated and parsed; private routes have the auth middleware
 - [ ] API paths, timeouts, storage keys, env values from constants/`Env`
 - [ ] Nothing hardcoded that varies by flavor
 

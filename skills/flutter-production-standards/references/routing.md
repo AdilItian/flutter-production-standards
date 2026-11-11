@@ -1,141 +1,169 @@
 # Routing
 
-Read when: adding or changing navigation, deep links, route guards, tabs/shells, or any `context.go/push`.
+Read when: adding or changing navigation, deep links, route guards, tabs/shells, or any `Get.toNamed` / navigation call.
 
 ## Decision
 
-**Default: `go_router` with typed routes (`go_router_builder`).** It is maintained by the Flutter team, supports deep links, web URLs, redirects, shell routes and nested navigation, and typed routes remove stringly-typed navigation entirely.
-**Why not Navigator 1.0 named routes:** no deep-link/web story, string arguments, no guards.
-**Why not `auto_route`/others:** viable, but a second routing vocabulary for no clear win; choose them only if the project already uses them.
-**GetX** projects: use `AppRoutes` + `AppPages` (section below).
+**Default: GetX navigation** (the `get` package: `GetMaterialApp`, `GetPage`, `GetMiddleware`, named routes), organized in two central files:
 
-Never hardcode a path or name in a widget. `audit.sh` flags `context.go('/…')`, `Navigator.pushNamed('…')`, `Get.toNamed('…')`.
+- `app/routes/app_routes.dart`: `AppRoutes`, every route name and path in one place.
+- `app/routes/app_pages.dart`: `AppPages`, the list of `GetPage`s (page builder, transition, middleware, binding).
 
-## Structure
+**Why:** one obvious place for every route, string-free navigation in screens, middleware for guards, route-scoped bindings when GetX state is used, and no extra routing concepts to learn.
+**Trade-offs, stated once:** GetX uses the Navigator 1.0 style, so routes are strings, not compile-time-typed objects. Deep links work by route name and path, with less type safety and a weaker nested-navigation story than `go_router`. The skill compensates with `AppRoutes` builder functions, an `AppNavigation` helper layer, and an `audit.sh` rule against string literals in navigation calls. Keep GetX for navigation only if the project uses Riverpod or Bloc for state; mixing is fine because routing and state are different concerns, but `Bindings` are only used when the project also uses GetX state.
+**`go_router`** stays a valid alternative (see the last section) when the project already uses it or the user chooses it in discovery.
+
+## Files
 
 ```
-app/router/
-  app_router.dart     # builds GoRouter: composes feature routes, redirect, observers, error page
-  app_paths.dart      # path constants for shell-level routes (splash, root)
-features/<f>/presentation/routes/<f>_routes.dart   # feature-owned typed routes
+lib/app/routes/
+  app_routes.dart        # route names/paths + builders for parameterized paths
+  app_pages.dart         # AppPages.pages: List<GetPage>
+  app_navigation.dart    # AppNavigation: the only place that calls Get.toNamed/offNamed/offAllNamed
+  middlewares/
+    auth_middleware.dart
 ```
-**Why feature-owned routes:** deleting or extracting a feature removes its routes with it; `app_router.dart` only composes.
+Tier L (packages): each feature package exports its own `List<GetPage>`, and `AppPages` spreads them: `...authPages, ...homePages`. Tier S/M keep one list.
 
-### Path constants
+### AppRoutes
 
 ```dart
-// app/router/app_paths.dart  (and per-feature path constants next to their routes)
-abstract final class AppPaths {
+// app/routes/app_routes.dart
+abstract final class AppRoutes {
   static const String splash = '/splash';
-  static const String home = '/';
   static const String login = '/login';
-  static const String products = '/products';
-  static const String productDetail = ':productId'; // child of products
+  static const String home = '/';
+  static const String search = '/search';
+  static const String notFound = '/not-found';
+
+  // Parameterized routes: a pattern for AppPages and a builder for callers
+  static const String titleDetailPattern = '/title/:id';
+  static String titleDetail(String id) => '/title/${Uri.encodeComponent(id)}';
+
+  // Parameter names, so screens never use raw 'id' strings
+  static const String paramId = 'id';
 }
 ```
+Rules: constants only; one pattern constant plus one builder per parameterized route; `Uri.encodeComponent` on values; no logic.
 
-### Typed routes (a feature)
-
-```dart
-// features/products/presentation/routes/products_routes.dart
-part 'products_routes.g.dart';
-
-@TypedGoRoute<ProductsRoute>(
-  path: AppPaths.products,
-  routes: [TypedGoRoute<ProductDetailRoute>(path: AppPaths.productDetail)],
-)
-class ProductsRoute extends GoRouteData {
-  const ProductsRoute();
-  @override
-  Widget build(BuildContext context, GoRouterState state) => const ProductListScreen();
-}
-
-class ProductDetailRoute extends GoRouteData {
-  const ProductDetailRoute({required this.productId});
-  final String productId;
-  @override
-  Widget build(BuildContext context, GoRouterState state) => ProductDetailScreen(productId: productId);
-}
-```
-Navigate: `const ProductsRoute().go(context)`, `ProductDetailRoute(productId: id).push(context)`.
-Pass **ids**, not objects, through routes (deep links, restoration and web refresh need serializable parameters); the destination loads its own data. Use `$extra` only for non-essential hints (e.g. a prefetched title) and always handle `null`.
-
-### Composition and guards
+### AppPages
 
 ```dart
-// app/router/app_router.dart  (Riverpod shown)
-@riverpod
-GoRouter appRouter(Ref ref) {
-  final auth = ref.watch(authStateListenableProvider); // a Listenable that notifies on auth change
-  return GoRouter(
-    initialLocation: AppPaths.splash,
-    refreshListenable: auth,
-    routes: [...$authRoutes, ...$homeRoutes, ...$productsRoutes],
-    redirect: (context, state) {
-      final status = auth.status;
-      final loggingIn = state.matchedLocation == AppPaths.login;
-      return switch (status) {
-        AuthStatus.unknown => AppPaths.splash,
-        AuthStatus.signedOut when !loggingIn => const LoginRoute().location,
-        AuthStatus.signedIn when loggingIn || state.matchedLocation == AppPaths.splash => AppPaths.home,
-        _ => null,
-      };
-    },
-    errorBuilder: (context, state) => NotFoundScreen(location: state.uri.toString()),
-    observers: [ref.watch(analyticsRouteObserverProvider)],
-  );
-}
-```
-- **One redirect function** owns auth/onboarding/force-update gating. Individual screens never check "am I logged in" and push elsewhere.
-- Preserve the intended destination on sign-in redirect (`?from=` encoded query) and return after login.
-- Redirects are synchronous. Resolve async state (token read) in bootstrap or a splash state, then notify.
-- Create the `GoRouter` once. Do not rebuild it on every state change (it resets navigation); drive changes through `refreshListenable`.
-
-### Shell routes (tabs / persistent navigation)
-
-Use `StatefulShellRoute.indexedStack` for bottom-nav/rail apps so each tab keeps its stack and scroll position. The shell widget is the adaptive navigation component from the design system.
-
-### Navigation helpers
-
-Keep helpers thin and typed; do not wrap go_router in a second abstraction.
-```dart
-extension NavX on BuildContext {
-  void popOrGo(String fallback) => canPop() ? pop() : go(fallback);
-}
-```
-Dialog/sheet/snackbar helpers are in `ui-guidelines.md`, not routing.
-
-### Deep links and notifications
-
-- Android App Links / iOS Universal Links over custom schemes where possible (verifiable, no hijack).
-- A push notification payload carries a **route intent** (`type`, `id`), mapped to a typed route in one `NotificationRouter`. Never put raw paths in payloads.
-- Validate every deep-link parameter (ids, enums). Treat links as untrusted input. See `security.md`.
-- Test: cold start from link, warm start, link while signed out (after login, continue to target).
-
-### Transitions and back behavior
-
-- Define page transitions in the theme (`pageTransitionsTheme`), not per route.
-- Android predictive back: do not intercept back with `WillPopScope`; use `PopScope` with `canPop` only for unsaved-changes confirmation.
-- Modal flows (checkout, onboarding) get their own nested route tree so back is predictable.
-
-## GetX variant (only if the user chose GetX)
-
-```dart
-abstract final class AppRoutes { static const String home = '/home'; static const String login = '/login'; }
-
+// app/routes/app_pages.dart
 abstract final class AppPages {
   static final List<GetPage<dynamic>> pages = [
-    GetPage(name: AppRoutes.home, page: HomeScreen.new, binding: HomeBinding()),
-    GetPage(name: AppRoutes.login, page: LoginScreen.new, binding: LoginBinding(),
-        middlewares: [AuthMiddleware()]),
+    GetPage(name: AppRoutes.splash, page: SplashScreen.new),
+    GetPage(name: AppRoutes.login, page: LoginScreen.new),
+    GetPage(
+      name: AppRoutes.home,
+      page: HomeScreen.new,
+      middlewares: [AuthMiddleware(appContainer)], // see Guards
+      binding: HomeBinding(), // only if the project uses GetX state
+    ),
+    GetPage(
+      name: AppRoutes.titleDetailPattern,
+      page: () => TitleDetailScreen(id: Get.parameters[AppRoutes.paramId]!),
+      transition: Transition.rightToLeft,
+    ),
   ];
+
+  static final GetPage<dynamic> notFound =
+      GetPage(name: AppRoutes.notFound, page: NotFoundScreen.new);
 }
-// Navigation helper: Get.toNamed(AppRoutes.home); arguments only as ids.
 ```
-Bindings own controller creation (`Get.lazyPut`); guards are `GetMiddleware`s; screens never call `Get.find` for repositories.
+Screens come from feature barrels (`features/title_detail/title_detail.dart`), never from a feature's `presentation/` internals. Validate parameters (`Get.parameters[...]` is a `String?`): parse to the expected type and show the not-found state on failure.
+
+### App widget
+
+```dart
+GetMaterialApp(
+  initialRoute: AppRoutes.splash,
+  getPages: AppPages.pages,
+  unknownRoute: AppPages.notFound,
+  theme: AppTheme.light(),
+  darkTheme: AppTheme.dark(),
+  themeMode: themeMode,
+  locale: locale,
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  defaultTransition: Transition.fade, // define once; pick per brand/platform
+  transitionDuration: AppDurations.normal,
+  routingCallback: analyticsRouteObserver.onRoute, // screen tracking
+);
+```
+Wrap with `ProviderScope`/`UncontrolledProviderScope` (Riverpod) or the Bloc providers above it, as the project requires. Check the `get` package's current API on pub.dev; parameter names have changed between versions.
+
+### AppNavigation: no string navigation anywhere else
+
+```dart
+// app/routes/app_navigation.dart
+abstract final class AppNavigation {
+  static Future<T?>? toTitleDetail<T>(String id) => Get.toNamed<T>(AppRoutes.titleDetail(id));
+  static Future<T?>? toSearch<T>() => Get.toNamed<T>(AppRoutes.search);
+  static void toHomeClearingStack() => Get.offAllNamed<void>(AppRoutes.home);
+  static void toLoginClearingStack() => Get.offAllNamed<void>(AppRoutes.login);
+  static void back<T>([T? result]) => Get.back<T>(result: result);
+}
+```
+Widgets call `AppNavigation.toTitleDetail(id)`. Raw `Get.toNamed('/…')` in a widget is rejected by `audit.sh`. Pass **ids**, never objects, through routes; the destination loads its own data. Use `arguments` only for non-essential hints and handle `null`.
+
+## Guards
+
+```dart
+// app/routes/middlewares/auth_middleware.dart
+class AuthMiddleware extends GetMiddleware {
+  AuthMiddleware(this._session);
+  final AuthSession _session; // small interface in shared/, implemented by the auth feature
+
+  @override
+  int? get priority => 1;
+
+  @override
+  RouteSettings? redirect(String? route) {
+    switch (_session.status) {
+      case AuthStatus.signedIn:
+        return null;
+      case AuthStatus.unknown:
+        return const RouteSettings(name: AppRoutes.splash);
+      case AuthStatus.signedOut:
+        _session.rememberDestination(route); // go back here after login
+        return const RouteSettings(name: AppRoutes.login);
+    }
+  }
+}
+```
+- **One place decides** who may enter which route. Screens never check "am I logged in?" and navigate away.
+- `redirect` is synchronous: resolve async state (reading the token) in bootstrap or on the splash screen, then navigate.
+- The guard depends on a small interface (`AuthSession`) so it works with Riverpod (read from the root `ProviderContainer`), Bloc, or GetX state.
+- React to later changes (sign-out, expired refresh token) by calling `AppNavigation.toLoginClearingStack()` from one listener in the app shell, not from random widgets.
+- After login, go to `rememberedDestination` if present, else home.
+
+## Deep links and notifications
+
+- Flutter passes the incoming URL to the app as a route name, so every deep-linkable path must have a `GetPage` pattern in `AppPages` (including parameters).
+- Android App Links and iOS Universal Links are preferred over custom schemes (verifiable). For web, enable the path URL strategy (`usePathUrlStrategy()`).
+- A push or local-notification payload carries a **route intent** (`type`, `id`), mapped to `AppRoutes` builders in one `NotificationRouter`. Never put raw paths in payloads.
+- Treat links as untrusted input: validate ids and enums, require the guard for private routes, confirm destructive actions. See `security.md`.
+- Test: cold start from a link, warm start, link while signed out (after login, continue to the target), unknown path (not-found screen).
+
+## Tabs and shells
+
+Navigator 1.0 has no built-in shell route. Use one `MainShellScreen` holding the bottom navigation or rail and an `IndexedStack` (keeps each tab's state and scroll position), with the tab's content as ordinary widgets. Detail screens open above the shell with `AppNavigation`. If tabs need their own back stacks, use nested navigators (`Get.nestedKey`) and document the exception, or choose `go_router`.
+
+## Back behavior and transitions
+
+- Define `defaultTransition` and its duration once in the app widget; override per `GetPage` only with a reason.
+- Don't intercept back with `WillPopScope`. Use `PopScope` with `canPop` only for unsaved-changes confirmation.
+- Modal flows (checkout, onboarding) get their own start route and finish with `offAllNamed` or a defined return route so back is predictable.
+- Dialogs, sheets and snackbars use the design-system helpers (`ui-guidelines.md`), not `Get.dialog` / `Get.snackbar` in features.
 
 ## Testing routes
 
-- Unit-test the redirect function with fake auth states (pure logic).
-- Widget-test navigation with a `MockGoRouter` or by pumping `MaterialApp.router` with the real router and fakes.
-- One integration test per deep link type.
+- Unit-test the middleware with a fake `AuthSession` for each status.
+- Test that `AppRoutes` builders produce the expected paths (including encoding) and that every pattern in `AppRoutes` has a `GetPage`: a test that walks `AppPages.pages` catches a missing route.
+- Widget-test navigation with `GetMaterialApp(getPages: AppPages.pages)` and fakes.
+- One integration test per deep-link type.
+
+## Alternative: go_router (when already in the project or chosen)
+
+Use `go_router` with typed routes (`go_router_builder`). Keep the same ideas: path constants in one `AppPaths` class, one `redirect` that owns auth gating, ids only in parameters, `StatefulShellRoute.indexedStack` for tab apps, a single `GoRouter` instance driven by `refreshListenable`, and `const HomeRoute().go(context)` style navigation. The `audit.sh` rule against string literals applies to `context.go('/…')` as well. Everything else in this skill (layering, feature barrels, tests) is unchanged.

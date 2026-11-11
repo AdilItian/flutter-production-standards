@@ -88,7 +88,7 @@ Why a `skills/` folder: the Skills.sh installer lets a `SKILL.md` at the repo ro
 | DTO → Entity → Model → Mapper | DTO → Entity (+ optional UI model); mappers are functions | A fourth type with no distinct reason to change is ceremony |
 | `AppColors` used by widgets | Widgets use theme roles; `AppColors` is raw palette for theme builders | Raw palette references break dark mode and rebranding |
 | `AppStrings` class | gen-l10n + ARB | Plurals, locale formatting, translator workflow, compile-time keys |
-| `AppRoutes`/`AppPages` | go_router typed routes, feature-owned (GetX variant included) | Deep links, web, guards, type safety |
+| `AppRoutes`/`AppPages` | Kept, as asked: GetX navigation (`GetMaterialApp`, `GetPage`) with central `AppRoutes`, `AppPages` and an `AppNavigation` helper (go_router as the alternative) | Single obvious place for routes. Compensates for string routes with builders, an audit rule against string literals, and an auth middleware |
 | "Recommend GetX/Riverpod/Bloc" | Riverpod default; Bloc for strict event flows; GetX supported with rules and a stated risk | Honest trade-offs rather than neutrality |
 | Checklist the AI reads | Checklist + `audit.sh` + lints, with a bounded fix loop | Prose rules are forgotten; tooling is not |
 | Share common widgets early | Rule of two for feature code; design-system atoms exempt | Premature sharing fits one use case badly |

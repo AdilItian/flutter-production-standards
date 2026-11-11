@@ -14,7 +14,7 @@ If the user has chosen one, use it. If they ask for a recommendation, apply this
 | Existing GetX project | **GetX, with the rules below** | Migrating is a separate decision; do not mix in a second system without an ADR |
 | New project, user asks for GetX | Use it if insisted, but state the risks first | See below |
 
-**Challenging the GetX choice (say this once, then respect the decision):** GetX bundles state, DI, routing, dialogs and utilities behind global `Get.*` calls. That makes widgets implicitly depend on global state, hides dependency flow (harder to enforce the layering this skill requires), makes tests need global setup/teardown, and has had long gaps in maintenance. It works, and many apps ship with it, but for a long-lived codebase Riverpod or Bloc give stronger guarantees.
+**Challenging the GetX choice (say this once, then respect the decision):** GetX bundles state, DI, routing, dialogs and utilities behind global `Get.*` calls. That makes widgets implicitly depend on global state, hides dependency flow (harder to enforce the layering this skill requires), makes tests need global setup/teardown, and has had long gaps in maintenance. It works, and many apps ship with it, but for a long-lived codebase Riverpod or Bloc give stronger guarantees. (This applies to GetX *state*. Using `get` only for navigation, as `routing.md` does by default, is fine alongside Riverpod or Bloc: keep `Bindings` and `Get.find` out of the project unless GetX state was chosen.)
 
 **Never mix two global state systems** in one feature. Local widget state (`StatefulWidget` for animation controllers, text controllers, focus) is always fine and preferred for ephemeral UI state.
 

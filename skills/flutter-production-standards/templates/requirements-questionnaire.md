@@ -23,6 +23,7 @@ Format to the user, per round:
 | # | Question | Options | Changes |
 |---|---|---|---|
 | 6 | State management? | a) Riverpod ★ b) Bloc/Cubit c) GetX d) other (name it) | State folder shape, DI, test style |
+| 6b | Navigation? | a) GetX navigation: `AppRoutes` + `AppPages` + `GetPage` ★ b) go_router (typed routes) | Routes folder, deep-link handling, guards (`routing.md`). Keep `get` for navigation only unless GetX state was chosen |
 | 7 | Backend? | a) REST ★ b) GraphQL c) Firebase d) Supabase e) none (local only) | Network layer, datasource types, auth |
 | 8 | Authentication? | a) none b) email+password c) social (which?) d) phone/OTP e) SSO/OIDC f) biometric unlock (in addition) | Auth feature, route guards, token storage |
 | 9 | Offline support? | a) none (online only) b) read cache ★ c) full offline with sync | Local DB, sync/outbox, conflict policy |

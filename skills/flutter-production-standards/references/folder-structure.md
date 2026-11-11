@@ -15,10 +15,12 @@ my_app/
 │   ├── bootstrap.dart               # init: bindings, env, error hooks, DI scope, runApp
 │   │
 │   ├── app/                         # the shell. Knows about every feature.
-│   │   ├── app.dart                 # MaterialApp.router, theme, l10n, router
-│   │   ├── router/
-│   │   │   ├── app_router.dart      # composes feature routes, redirect/guards
-│   │   │   └── app_paths.dart       # path/name constants for shell-level routes
+│   │   ├── app.dart                 # GetMaterialApp: theme, l10n, getPages, initialRoute
+│   │   ├── routes/
+│   │   │   ├── app_routes.dart      # every route name/path (+ builders for parameterized ones)
+│   │   │   ├── app_pages.dart       # AppPages.pages: List<GetPage>
+│   │   │   ├── app_navigation.dart  # the only code that calls Get.toNamed / offNamed
+│   │   │   └── middlewares/         # auth_middleware.dart, ...
 │   │   └── di/                      # global providers/registrations (services, clients)
 │   │
 │   ├── core/                        # non-UI infrastructure. Imports no feature.
@@ -70,8 +72,8 @@ my_app/
 │           └── presentation/
 │               ├── screens/         # <name>_screen.dart (one route target each)
 │               ├── widgets/         # feature-private widgets
-│               ├── state/           # controllers / notifiers / blocs + state classes
-│               └── routes/          # <feature>_routes.dart (feature-owned route declarations)
+│               └── state/           # controllers / notifiers / blocs + state classes
+│                                    # (Tier L packages also export <feature>_pages.dart: a List<GetPage> spread into AppPages)
 │
 ├── assets/
 │   ├── images/   ├── icons/   ├── animations/   └── fonts/

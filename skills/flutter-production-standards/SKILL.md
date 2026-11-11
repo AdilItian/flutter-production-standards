@@ -1,6 +1,6 @@
 ---
 name: flutter-production-standards
-description: Acts as a senior Flutter architect. Use whenever creating, scaffolding, extending, refactoring or reviewing a Flutter/Dart app or feature, or when turning a design (Figma, screenshot, mockup) into Flutter screens. Gathers requirements before writing code, then enforces feature-first layered architecture, design-system-first UI, zero magic values, localization, typed routing, layered networking, and a self-review gate that must pass before delivery.
+description: Acts as a senior Flutter architect. Use whenever creating, scaffolding, extending, refactoring or reviewing a Flutter/Dart app or feature, or when turning a design (Figma, screenshot, mockup) into Flutter screens. Gathers requirements before writing code, then enforces feature-first layered architecture, design-system-first UI, zero magic values, localization, centralized routing (AppRoutes/AppPages), layered networking, and a self-review gate that must pass before delivery.
 ---
 
 # Flutter Production Standards
@@ -90,7 +90,7 @@ Create it with `scripts/new_feature.sh <name>`. Then, in order:
 2. **data**: DTOs, mappers, datasource, repository implementation, `Result` wrapping. See `references/data-models.md`.
 3. **state**: a controller/notifier/bloc **only if** the "Do I need a controller?" decision order in `references/state-management.md` says so (many screens need none). Use sealed or async state.
 4. **presentation**: screens composed of design-system components and feature widgets. Forms, loading and success/error feedback follow `references/forms-and-feedback.md`.
-5. **route**: feature-owned route declaration, registered in the app router.
+5. **route**: add the constants to `AppRoutes`, the `GetPage` to `AppPages`, and a navigation helper to `AppNavigation` (`references/routing.md`). Screens never navigate with string literals.
 6. **strings**: ARB keys for every visible string, in every supported locale.
 7. **tests**: written alongside, per `references/testing.md`.
 
@@ -144,7 +144,7 @@ Use these only after the user says "defaults" or "you decide", and record them a
 |---|---|
 | Tier | M |
 | State management | Riverpod (with codegen) |
-| Navigation | go_router with typed routes |
+| Navigation | GetX navigation (`get`): `GetMaterialApp`, `GetPage`, central `AppRoutes` + `AppPages` + `AppNavigation`; go_router only if the project already uses it |
 | HTTP | dio |
 | Models | `json_serializable` + `freezed` (or hand-written immutable classes for tiny apps) |
 | Local DB | drift for relational data, `shared_preferences` for flags only, `flutter_secure_storage` for secrets |
@@ -163,6 +163,6 @@ Summarized so you can explain them if challenged. Full reasoning is in the linke
 - **DTO → Entity, not DTO → Entity → Model → Mapper.** Two types plus mapper functions. A third UI type only when formatting justifies it. (`data-models.md`)
 - **`AppStrings` is replaced by gen-l10n** for user-facing text; a hand-written strings class cannot be translated or pluralized. (`localization.md`)
 - **Widgets read semantic theme roles, not `AppColors.blue500`.** A raw palette reference silently breaks dark mode. (`theming-and-constants.md`)
-- **GetX is supported but not recommended** for new projects. (`state-management.md`)
+- **Routing uses GetX navigation** (`AppRoutes` + `AppPages`) by the owner's choice. The compromise for losing compile-time typed routes is string-free navigation through `AppNavigation` and an audit rule. **GetX for *state* is supported but not recommended** for new projects; Riverpod stays the default. (`routing.md`, `state-management.md`)
 - **Rules are enforced by tooling, not prose.** `scripts/audit.sh` and lints catch what a checklist forgets. (`code-review-checklist.md`)
 - **Promote to `shared/` on the second use**, not the first guess. Design-system atoms are exempt: they are shared from day one.

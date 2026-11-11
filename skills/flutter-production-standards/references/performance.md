@@ -30,7 +30,7 @@ Never: create `Future`/`Stream`/controllers in `build`; do heavy computation (so
 
 ## Pagination and lazy loading
 
-Load on demand with a threshold trigger (`networking.md`); page size 20-50; show a footer loader; dedupe; cancel on dispose. Lazy-load heavy screens/tabs (build when first visited; `IndexedStack` keeps alive, so use `StatefulShellRoute` knowingly). Defer-load large optional modules with deferred components on Android / `deferred as` imports for web when bundle size matters.
+Load on demand with a threshold trigger (`networking.md`); page size 20-50; show a footer loader; dedupe; cancel on dispose. Lazy-load heavy screens/tabs (build when first visited; `IndexedStack` keeps every tab alive, so use it knowingly (the tab shell in `routing.md`)). Defer-load large optional modules with deferred components on Android / `deferred as` imports for web when bundle size matters.
 
 ## Images
 

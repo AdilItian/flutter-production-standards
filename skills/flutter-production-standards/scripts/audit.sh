@@ -60,8 +60,10 @@ check ERROR "Hardcoded user-facing string. Use context.l10n" \
   "(Text|SelectableText)\(([[:space:]]*const)?[[:space:]]*['\"]|(labelText|hintText|helperText|errorText|tooltip|semanticLabel|semanticsLabel|title|label):[[:space:]]*(const[[:space:]]+)?(Text\()?['\"]" '' $UI
 
 # --- Routing --------------------------------------------------------------
-check ERROR "Hardcoded route string. Use typed routes / AppRoutes" \
-  "(context\.(go|push|pushReplacement|replace)|Navigator\.(of\(context\)\.)?(pushNamed|pushReplacementNamed|popAndPushNamed)|Get\.(to|toNamed|offNamed))\(([[:space:]]*)['\"]" '' lib
+check ERROR "Hardcoded route string. Use AppRoutes via AppNavigation" \
+  "(context\.(go|push|pushReplacement|replace)|Navigator\.(of\(context\)\.)?(pushNamed|pushReplacementNamed|popAndPushNamed)|Get\.(to|toNamed|off|offNamed|offAllNamed|offNamedUntil))(<[A-Za-z?<>, ]*>)?\(([[:space:]]*)['\"]" '' lib
+check ERROR "Navigation call outside AppNavigation. Add a helper to app_navigation.dart" \
+  'Get\.(toNamed|offNamed|offAllNamed|offNamedUntil)(<[A-Za-z?<>, ]*>)?\(' '^lib/app/routes/' lib
 
 # --- Layering -------------------------------------------------------------
 check ERROR "HTTP/DB package imported in presentation or domain" \
