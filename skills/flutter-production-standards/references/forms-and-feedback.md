@@ -12,6 +12,7 @@ Read when: building any form, any async screen or action, or any success, error,
 | Button-triggered action (submit, pay) | Spinner **inside the button**, button disabled, label kept for screen readers | `PrimaryButton(isLoading: true)` |
 | Full-screen blocking operation (rare: payment confirm) | Modal progress with text, not dismissible, with a timeout path | `showBlockingProgress` |
 | Background sync | A small non-blocking indicator or status chip | `SyncStatusChip` |
+| Remote image loading or failure | Skeleton at the final size, fade-in; on failure a fallback with tap-to-retry | `AppNetworkImage` (`ui-guidelines.md`) |
 
 Rules:
 - All of these live in `design_system/components/feedback`. Features never use a bare `CircularProgressIndicator`.

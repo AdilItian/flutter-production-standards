@@ -149,6 +149,7 @@ Use these only after the user says "defaults" or "you decide", and record them a
 | Models | `json_serializable` + `freezed` (or hand-written immutable classes for tiny apps) |
 | Local DB | drift for relational data, `shared_preferences` for flags only, `flutter_secure_storage` for secrets |
 | Localization | gen-l10n with ARB |
+| Network images | `cached_network_image` behind `AppNetworkImage` (skeleton loading, failure state with retry) |
 | Theme | Material 3, light + dark + system, seed-based `ColorScheme` or brand-supplied scheme |
 | Environments | `dev` / `staging` / `prod` via `--dart-define-from-file` |
 | Lints | `very_good_analysis` plus `templates/analysis_options.yaml` |

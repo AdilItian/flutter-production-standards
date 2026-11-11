@@ -52,6 +52,9 @@ check ERROR "Raw Duration. Use AppDurations" \
 check ERROR "Raw asset path. Use AppAssets (or generated assets)" \
   "['\"]assets/" 'app_assets\.dart' lib
 
+check ERROR "Direct network image call. Use AppNetworkImage (cached, skeleton, failure state)" \
+  '(Image\.network|(^|[^A-Za-z_])(Cached)?NetworkImage(Provider)?)\(' '^lib/design_system/' lib
+
 # --- Localization ---------------------------------------------------------
 check ERROR "Hardcoded user-facing string. Use context.l10n" \
   "(Text|SelectableText)\(([[:space:]]*const)?[[:space:]]*['\"]|(labelText|hintText|helperText|errorText|tooltip|semanticLabel|semanticsLabel|title|label):[[:space:]]*(const[[:space:]]+)?(Text\()?['\"]" '' $UI

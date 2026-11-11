@@ -36,6 +36,7 @@ Create these during foundation (Step 3) so features never invent their own:
 | Buttons | `PrimaryButton`, `SecondaryButton`, `AppTextButton`, `AppIconButton` |
 | Inputs | `AppTextField` (label, hint, error, obscure toggle, prefix/suffix), `PasswordField`, `SearchField`, `AppDropdown`, `AppCheckbox`/`AppSwitch` as needed |
 | Display | `AppCard`, `ProfileAvatar` (image/initials/placeholder), `AppBadge`, `AppListTile`, `AppDivider` |
+| Media | `AppNetworkImage` (wraps `cached_network_image`, with skeleton, fade-in, failure-with-retry), `ImageFallback` |
 | Feedback | `LoadingView`, `EmptyState`, `ErrorView` (with retry), `AppSnackbar` helper, `AppSkeleton` |
 | Navigation | `AppAppBar`, bottom/rail navigation shell |
 | Overlays | `showAppDialog`, `showAppBottomSheet`, confirm dialog |
@@ -106,6 +107,98 @@ extension on AppButtonSize {
 ```
 
 Colors, shape and text style come from `FilledButtonThemeData` in the theme, **not** from the widget. Restyling the app means editing the theme once.
+
+## Network images: one component, never a raw call
+
+**Rule:** every remote image is shown through `AppNetworkImage` (`design_system/components/media`), which wraps `cached_network_image`. Feature code never calls `Image.network`, `NetworkImage`, `CachedNetworkImage` or `CachedNetworkImageProvider` directly (`audit.sh` flags it). Avatars, cards, galleries and `CircleAvatar` backgrounds all go through it or through a component built on it (`ProfileAvatar`).
+
+**Why:** `Image.network` has no disk cache, no sensible loading state and no failure state, so every screen reinvents them differently. One wrapper gives caching, decode-at-display-size, a consistent skeleton, a consistent failure state with retry, and semantics, and a package swap touches one file.
+
+Contract:
+
+| State | Behavior |
+|---|---|
+| **No url** (null or empty) | Neutral fallback with a generic icon. Not an error and no retry. |
+| **Loading** | Skeleton the size of the final box (shimmer, static when reduced motion is on), never a spinner on a collapsed box. Reserve space with `aspectRatio` or a fixed size so the layout doesn't jump. |
+| **Loaded** | Fade in over `AppDurations.fast`. Decode at display size (`memCacheWidth`/`memCacheHeight` from the layout constraints and device pixel ratio). |
+| **Failed** | Tinted surface with a "broken image" icon. If the box is large enough, show a localized "Tap to retry" label; tapping evicts the cached entry and retries. Small boxes (under ~64 dp) show the icon only, still tappable. |
+| **Semantics** | A localized label for informative images; `decorative: true` excludes decorative ones. The failed state announces "Image failed to load. Double tap to retry." from l10n. |
+
+```dart
+class AppNetworkImage extends StatefulWidget {
+  const AppNetworkImage({
+    required this.url,
+    this.semanticLabel,
+    this.decorative = false,
+    this.aspectRatio,
+    this.fit = BoxFit.cover,
+    this.borderRadius = BorderRadius.zero,
+    this.httpHeaders,
+    super.key,
+  });
+
+  final String? url;
+  final String? semanticLabel; // from context.l10n; required in practice unless decorative
+  final bool decorative;
+  final double? aspectRatio;
+  final BoxFit fit;
+  final BorderRadius borderRadius;
+  final Map<String, String>? httpHeaders; // e.g. auth for protected images
+
+  @override
+  State<AppNetworkImage> createState() => _AppNetworkImageState();
+}
+
+class _AppNetworkImageState extends State<AppNetworkImage> {
+  int _attempt = 0; // changing the key forces a fresh load
+
+  Future<void> _retry() async {
+    await CachedNetworkImage.evictFromCache(widget.url!);
+    if (mounted) setState(() => _attempt++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final url = widget.url;
+    Widget child = (url == null || url.isEmpty)
+        ? const ImageFallback.noImage()
+        : LayoutBuilder(builder: (context, c) {
+            final dpr = MediaQuery.devicePixelRatioOf(context);
+            // Set only one dimension so the aspect ratio is kept.
+            final cacheW = c.hasBoundedWidth ? (c.maxWidth * dpr).round() : null;
+            final cacheH = cacheW == null && c.hasBoundedHeight ? (c.maxHeight * dpr).round() : null;
+            return CachedNetworkImage(
+              key: ValueKey('$url#$_attempt'),
+              imageUrl: url,
+              httpHeaders: widget.httpHeaders,
+              fit: widget.fit,
+              memCacheWidth: cacheW,
+              memCacheHeight: cacheH,
+              fadeInDuration: AppDurations.fast,
+              fadeOutDuration: AppDurations.instant,
+              placeholder: (_, __) => const AppSkeleton(),
+              errorWidget: (_, __, ___) => ImageFallback.failed(onRetry: _retry),
+            );
+          });
+
+    if (widget.aspectRatio != null) child = AspectRatio(aspectRatio: widget.aspectRatio!, child: child);
+    child = ClipRRect(borderRadius: widget.borderRadius, child: child);
+    return widget.decorative
+        ? ExcludeSemantics(child: child)
+        : Semantics(image: true, label: widget.semanticLabel, child: child);
+  }
+}
+```
+`ImageFallback` is a small component in the same folder: `.noImage()` shows a neutral icon; `.failed(onRetry:)` shows the broken-image icon on `colorScheme.surfaceContainerHighest`, an `InkWell` with at least a 48 dp tap area, and, when `constraints.maxWidth >= 64`, the localized retry label. Colors, icons (`AppIcons.imageBroken`, `AppIcons.imageEmpty`) and spacing come from tokens, as everywhere.
+
+Notes and rules:
+- Pass **sized** boxes. An unbounded image can't be decoded at display size and may load the full-resolution original.
+- Ask the server for the right size and format (a width parameter, WebP). The decode size here reduces memory; it doesn't reduce download size.
+- Disk cache limits: configure the cache manager once (`CacheManager` with `maxNrOfCacheObjects` and `stalePeriod`) in `core`, and clear it on sign-out when images are user-specific or private.
+- `precacheImage` only for the next likely screen's hero image.
+- On web the package relies on the browser cache. Check its current platform support on pub.dev before promising the same behavior there.
+- Verify on pub.dev that `cached_network_image` is still maintained when starting a project. If it is not, keep the wrapper and swap the implementation inside it.
+- Tests: no url shows the fallback; a failing loader shows the failed state, and tapping retry rebuilds with a new key; loading shows the skeleton at the final size; informative images expose a label and decorative ones don't. Use a fake `CacheManager` or an `HttpOverrides` stub so tests make no network calls.
 
 ## Reference implementation: state coverage wrapper
 

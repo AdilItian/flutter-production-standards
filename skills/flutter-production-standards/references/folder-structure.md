@@ -40,6 +40,7 @@ my_app/
 │   │       ├── buttons/             # primary_button, secondary_button, app_icon_button
 │   │       ├── inputs/              # app_text_field, app_dropdown, search_field
 │   │       ├── display/             # app_card, profile_avatar, app_badge, app_list_tile
+│   │       ├── media/               # app_network_image, image_fallback
 │   │       ├── feedback/            # loading_view, empty_state, error_view, app_snackbar
 │   │       ├── navigation/          # app_app_bar, app_bottom_nav
 │   │       └── overlays/            # app_dialog, app_bottom_sheet

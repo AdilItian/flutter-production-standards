@@ -34,7 +34,7 @@ Load on demand with a threshold trigger (`networking.md`); page size 20-50; show
 
 ## Images
 
-- Network: `cached_network_image` (or equivalent) with sized placeholders and error widgets; a reasonable disk cache limit.
+- Network: always through `AppNetworkImage`, which wraps `cached_network_image` with a sized skeleton, a failure state with retry, and decode at display size (`ui-guidelines.md`, "Network images"). Never `Image.network` in feature code. Set a disk cache limit in `core`.
 - Decode at display size: set `cacheWidth`/`cacheHeight` (or `ResizeImage`) to the rendered pixel size × device pixel ratio. Full-resolution decoding of a 12 MP photo into a 48 dp avatar wastes ~48 MB.
 - Ask the server for the right size/format (width param, WebP/AVIF) rather than shipping originals.
 - Assets: WebP for raster, SVG/vector_graphics for icons, compress PNGs, no 4K assets for 100 dp slots. Provide density variants only when needed.

@@ -51,6 +51,7 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] Loading, content, empty, error (and offline) states all rendered
 - [ ] Side effects not triggered from `build`
 - [ ] Loading uses the standard pattern (skeleton / refresh keeps data / in-button spinner), never a bare `CircularProgressIndicator`
+- [ ] Every remote image goes through `AppNetworkImage` (cached, sized, skeleton loading, failure with retry, semantics); no direct `Image.network` / `NetworkImage` / `CachedNetworkImage` in features
 - [ ] Success, info and warning feedback go through `AppFeedback` with ARB messages; no ad hoc `SnackBar`
 - [ ] Forms follow the validation timing rules, use typed `FieldError`s, keep submit enabled until submitting, focus the first error, preserve input on failure
 - [ ] Offline and retry UX present: `OfflineBanner`, retry only for retryable failures, auto-refresh on reconnect
