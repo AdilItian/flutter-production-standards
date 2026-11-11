@@ -37,6 +37,10 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] `scripts/check_ids.sh` passes: valid ids on every platform, no `com.example`, ids consistent, flavor suffixes set, Firebase config matches
 - [ ] On an existing project: a baseline gap report exists in `docs/skill-audit/` and the user was notified; no app id, signing or release config was changed without approval
 
+- [ ] Offline-first by default: server data is cache-first and writes are local-first with an outbox, or the feature is a recorded online-only exception (`resilience.md`)
+- [ ] With the backend down: the app launches, navigates, shows cached data, queues writes, never hangs or signs the user out; backend-down tests exist
+- [ ] Each synced entity has a `SyncPolicy` preset or a recorded override
+
 ## B. Models and mapping (Blocker)
 
 - [ ] No `Map<String, dynamic>`/`dynamic` outside DTO parsing
@@ -50,9 +54,11 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] Screen composed from components; `build` short; no `_buildX()` widget helper methods
 - [ ] Loading, content, empty, error (and offline) states all rendered
 - [ ] Side effects not triggered from `build`
+- [ ] Default shared widgets are used: `AppLoader` (no raw spinner), `NoInternetView` / `ServerUnavailableView` / `ErrorView` with working retry, `OfflineBanner`, `EmptyState`; full-screen error states only when there is no cached data
+- [ ] Dates, numbers, currency and strings use `core/utils` (`context.fmt`, `StringUtils`); no inline `DateFormat` patterns, no direct `DateTime.now()` outside `core`
 - [ ] Loading uses the standard pattern (skeleton / refresh keeps data / in-button spinner), never a bare `CircularProgressIndicator`
 - [ ] Every remote image goes through `AppNetworkImage` (cached, sized, skeleton loading, failure with retry, semantics); no direct `Image.network` / `NetworkImage` / `CachedNetworkImage` in features
-- [ ] Success, info and warning feedback go through `AppFeedback` with ARB messages; no ad hoc `SnackBar`
+- [ ] Success, info and warning feedback go through `AppToast` (black, text only, ARB messages); no ad hoc `SnackBar`, `Get.snackbar` or toast packages
 - [ ] Forms follow the validation timing rules, use typed `FieldError`s, keep submit enabled until submitting, focus the first error, preserve input on failure
 - [ ] Offline and retry UX present: `OfflineBanner`, retry only for retryable failures, auto-refresh on reconnect
 

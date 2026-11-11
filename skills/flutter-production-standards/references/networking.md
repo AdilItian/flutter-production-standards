@@ -247,7 +247,10 @@ Search-as-you-type and screen exit must cancel in-flight work: pass a `CancelTok
 
 Every cache has: a key, a TTL or invalidation trigger, a size bound, and is cleared on sign-out. Images use `cached_network_image` (disk cache with a max age/size), not the DB.
 
-## Offline support (only if chosen in discovery)
+## Offline support (default: offline-first)
+
+**Offline-first is the default** for server data. The behavior contract, default sync times (`SyncPolicy` presets), backend-down rules, `BackendStatus` and the required test matrix are in `resilience.md`. This section and the next hold the mechanics (repository shape, outbox, sync engine).
+
 
 | Level | Design |
 |---|---|

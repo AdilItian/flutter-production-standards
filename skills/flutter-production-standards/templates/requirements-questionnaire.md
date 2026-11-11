@@ -26,8 +26,8 @@ Format to the user, per round:
 | 6b | Navigation? | a) GetX navigation: `AppRoutes` + `AppPages` + `GetPage` ★ b) go_router (typed routes) | Routes folder, deep-link handling, guards (`routing.md`). Keep `get` for navigation only unless GetX state was chosen |
 | 7 | Backend? | a) REST ★ b) GraphQL c) Firebase d) Supabase e) none (local only) | Network layer, datasource types, auth |
 | 8 | Authentication? | a) none b) email+password c) social (which?) d) phone/OTP e) SSO/OIDC f) biometric unlock (in addition) | Auth feature, route guards, token storage |
-| 9 | Offline support? | a) none (online only) b) read cache ★ c) full offline with sync | Local DB, sync/outbox, conflict policy |
-| 10 | Local database? | a) none b) drift (SQL) c) isar/objectbox d) shared_preferences only | Persistence layer, migrations. *Forced "yes" if Q9 = c.* |
+| 9 | Offline behavior? **Offline-first is the default** (the app works when the backend is down). | a) offline-first: cache-first reads, local-first writes, sync ★ b) read cache only c) online only (record why) | Local DB, sync/outbox, conflict policy, `resilience.md` |
+| 10 | Local database? | a) drift (SQL) ★ b) isar/objectbox c) none (only if Q9 = c) | Persistence layer, migrations. *Required unless Q9 = c.* |
 
 ## Round 3: Product and operations
 
@@ -49,12 +49,12 @@ Format to the user, per round:
 | # | Asked when | Question | Options | Changes |
 |---|---|---|---|---|
 | 21 | Q7 is REST/GraphQL | Does the backend publish rate limits (requests per second/minute, `Retry-After`)? | a) yes (give numbers) b) no / unknown ★ | `RequestGate` constants |
-| 22 | Q9 = full offline | For each synced entity: how fresh must data be, and who wins on conflict? One grouped question. | defaults ★ (15 min pull, 5 min stale-after, server wins) or per-entity values; conflict: server wins / client wins / last write wins / merge / ask user | `SyncPolicy` per entity, conflict policy in the ADR |
-| 23 | Q9 = full offline | Should sync run in the background when the app is closed? | a) foreground only ★ b) background (WorkManager / BGTaskScheduler, timing not guaranteed) | Platform setup, battery impact |
+| 22 | Q9 = a (offline-first) | For each synced entity: how fresh must data be, and who wins on conflict? One grouped question. | defaults ★ (`SyncPolicy.standard`: 5 min stale-after, 15 min foreground pull, server wins; presets in `resilience.md`) or per-entity values; conflict: server wins / client wins / last write wins / merge / ask user | `SyncPolicy` per entity, conflict policy in the ADR |
+| 23 | Q9 = a (offline-first) | Should sync run in the background when the app is closed? | a) foreground only ★ b) background (WorkManager / BGTaskScheduler, timing not guaranteed) | Platform setup, battery impact |
 
 ## Conflict checks (run before writing the ADR)
 
-- Q9 = full offline and Q10 = none → ask which database.
+- Q9 = offline-first and Q10 = none → ask which database (one is required).
 - Q3 includes Web and Q8 uses biometric → biometrics unsupported on web; confirm fallback.
 - Q7 = Firebase and Q8 = SSO/OIDC → confirm Firebase Auth supports the provider or use custom tokens.
 - Q11 includes RTL and Q12 = brand-specific → confirm the brand font has Arabic/Hebrew glyphs.

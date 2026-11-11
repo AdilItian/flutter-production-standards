@@ -6,11 +6,11 @@ Read when: building any form, any async screen or action, or any success, error,
 
 | Situation | Pattern | Component |
 |---|---|---|
-| First load of a screen or list | **Skeleton** shaped like the content (spinner if the shape is unknown) | `AppSkeleton`, `LoadingView` |
+| First load of a screen or list | **Skeleton** shaped like the content (spinner if the shape is unknown) | `AppSkeleton`, `AppLoader.page()` |
 | Refresh (pull-to-refresh, retry with data present) | Keep the **old data visible**; show the refresh indicator only | `RefreshIndicator`, `skipLoadingOnRefresh` |
 | Loading more (pagination) | Footer loader at the end of the list | `LoadMoreFooter` |
 | Button-triggered action (submit, pay) | Spinner **inside the button**, button disabled, label kept for screen readers | `PrimaryButton(isLoading: true)` |
-| Full-screen blocking operation (rare: payment confirm) | Modal progress with text, not dismissible, with a timeout path | `showBlockingProgress` |
+| Full-screen blocking operation (rare: payment confirm) | Modal progress with text, not dismissible, with a timeout path | `AppLoader.overlay()` |
 | Background sync | A small non-blocking indicator or status chip | `SyncStatusChip` |
 | Remote image loading or failure | Skeleton at the final size, fade-in; on failure a fallback with tap-to-retry | `AppNetworkImage` (`ui-guidelines.md`) |
 
@@ -20,59 +20,81 @@ Rules:
 - Always give loading a way out: timeout then error with retry.
 - Announce to screen readers when loading starts and finishes (`accessibility.md`).
 
-## Success feedback
+## Toasts: minimal, black, text only
 
-Failures are typed, so successes get a consistent shape too. Pick by situation, never ad hoc:
+Success and error feedback looks like a native snackbar: a **black background with text only**. No icon, no title, no color per kind, no card, no emoji. The wording carries the meaning, so nothing depends on color alone (accessibility). One component, `AppToast`, is the only way to show one (`audit.sh` flags raw `SnackBar`, `showSnackBar`, `Get.snackbar` and toast packages in feature code).
 
-| Situation | Feedback |
+| Property | Value |
 |---|---|
-| A background or minor action succeeded (saved, copied, added to cart) | Snackbar, 4 s, optional **Undo** for reversible actions |
-| A form submit succeeded and the user stays on the screen | Inline confirmation near the form, or snackbar |
-| A form submit succeeded and the flow is finished (profile saved) | Pop or navigate back, then a snackbar on the destination |
-| A major or irreversible result (order placed, payment completed, account created) | A dedicated **success screen** with a summary and a next action |
-| Something happened that needs a decision | Dialog |
-
-One helper, used everywhere:
+| Background | `AppColors.toastBackground`: black in light theme; near-black (for example `#1C1C1E`) in dark theme so it stays distinct from a dark screen. Defined as a token, set in `SnackBarThemeData`. |
+| Text | `AppColors.onToast` (white), theme `bodyMedium`, **max 2 lines**, ellipsis |
+| Shape | Floating, small radius (`AppRadius.sm`), bottom, margin from `AppSpacing`, elevation 0 or low |
+| Duration | success and info `AppDurations.toastShort` (~2.5 s), error `AppDurations.toast` (~4 s) |
+| Action | Optional single **text** action (Undo, Retry) in the same color, no button chrome |
+| Behavior | A new toast replaces the current one; never stacks; no close icon |
+| Kinds | `success`, `error`, `info`: identical look, different default duration and the same screen-reader announcement. Kind exists for call-site clarity and analytics, not for color |
 
 ```dart
-enum FeedbackKind { success, error, info, warning }
+// design_system/components/feedback/app_toast.dart
+abstract final class AppMessenger {
+  /// Passed to GetMaterialApp/MaterialApp as scaffoldMessengerKey, so toasts need no BuildContext.
+  static final GlobalKey<ScaffoldMessengerState> key = GlobalKey<ScaffoldMessengerState>();
+}
 
-abstract final class AppFeedback {
-  static void show(
-    BuildContext context, {
-    required FeedbackKind kind,
-    required String message, // always from context.l10n
-    String? actionLabel,
-    VoidCallback? onAction,
-  }) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger
-      ..hideCurrentSnackBar()
+abstract final class AppToast {
+  static void success(String message, {String? actionLabel, VoidCallback? onAction}) =>
+      _show(message, AppDurations.toastShort, actionLabel, onAction);
+  static void info(String message, {String? actionLabel, VoidCallback? onAction}) =>
+      _show(message, AppDurations.toastShort, actionLabel, onAction);
+  static void error(String message, {String? actionLabel, VoidCallback? onAction}) =>
+      _show(message, AppDurations.toast, actionLabel, onAction);
+
+  static void _show(String message, Duration duration, String? actionLabel, VoidCallback? onAction) {
+    AppMessenger.key.currentState
+      ?..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Row(children: [
-            Icon(kind.icon(context)),
-            AppSpacing.gapSm,
-            Expanded(child: Text(message)),
-          ]),
-          backgroundColor: kind.background(context), // from ColorScheme / AppColorsExtension
-          duration: AppDurations.snackbar,
+          content: Text(message, maxLines: 2, overflow: TextOverflow.ellipsis),
+          duration: duration,
           action: actionLabel == null ? null : SnackBarAction(label: actionLabel, onPressed: onAction ?? () {}),
         ),
       );
   }
 }
-```
-(`icon` and `background` are extension methods on `FeedbackKind` in the same file, reading only theme roles.)
 
-Rules:
-- Messages are ARB keys, written as a result in plain words ("Address saved"), not "Success!".
-- Success and error use the **same component**, so only the kind differs.
-- Trigger feedback from a listener on a one-shot event, never from `build` (`state-management.md`).
-- Error feedback follows `error-handling.md`; the failure-to-message mapping is the only source of error text.
-- Snackbars are announced by screen readers; don't add a second announcement unless testing shows silence.
+// In AppTheme: every visual property comes from the theme, not from the toast
+snackBarTheme: SnackBarThemeData(
+  behavior: SnackBarBehavior.floating,
+  backgroundColor: AppColors.toastBackground,
+  contentTextStyle: textTheme.bodyMedium?.copyWith(color: AppColors.onToast),
+  actionTextColor: AppColors.onToast,
+  showCloseIcon: false,
+  elevation: AppElevation.none,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+),
+```
+`AppMessenger.key` requires the `scaffoldMessengerKey` parameter on the app widget (`MaterialApp` and `GetMaterialApp` both expose it; confirm in the installed version).
+
+### Which feedback for which situation
+
+| Situation | Feedback |
+|---|---|
+| A background or minor action succeeded (saved, copied, added) | Toast, optional Undo for reversible actions |
+| An action failed and the user can try again | Toast with a Retry action, or inline error near the control |
+| A change was saved offline and will sync | Toast: "Saved. Will sync when you're online." |
+| A form submit succeeded and the flow is finished | Pop or navigate, then a toast on the destination |
+| A major or irreversible result (order placed, payment completed, account created) | A dedicated **success screen** with a summary and a next action |
+| Something needs a decision | Dialog |
+| No data to show (first load failed, no cache) | `NoInternetView` / `ServerUnavailableView` / `ErrorView`, not a toast |
+
+### Copy rules
+
+- At most about 60 characters, sentence case, plain words. "Address saved", "Couldn't save. Try again.", "Added to watchlist", "Saved. Will sync when you're online."
+- No "Error:" or "Success!" prefixes, no status codes, no technical terms, no exclamation spam, no emoji.
+- Every message is an ARB key (`localization.md`); failure text comes from the failure-to-message mapping (`error-handling.md`).
+- Trigger toasts from a listener on a one-shot event, never from `build` (`state-management.md`).
 - Never claim success before the operation is confirmed (optimistic UI only with a rollback path).
-- At most one snackbar at a time; a newer one replaces the older.
+- Repeated identical failures (a retry loop, many background syncs failing) show one toast, then the offline banner. Never a toast storm.
 
 ## Forms
 
@@ -147,4 +169,4 @@ enum SubmitStatus { idle, submitting, success, failure }
 - Validators: table-driven (empty, whitespace, boundary lengths, unicode).
 - Form state holder: timing rules (no error before blur, error clears on valid change, all errors on submit, server field errors).
 - Widgets: first invalid field receives focus; submit shows loading and then the result; errors have semantics.
-- `AppFeedback`: right icon, color and text per kind; replaces the previous snackbar.
+- `AppToast`: uses the theme (black background, text only), max 2 lines, replaces the previous toast, optional action; no icon rendered.

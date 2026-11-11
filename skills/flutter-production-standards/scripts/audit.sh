@@ -55,6 +55,16 @@ check ERROR "Raw asset path. Use AppAssets (or generated assets)" \
 check ERROR "Direct network image call. Use AppNetworkImage (cached, skeleton, failure state)" \
   '(Image\.network|(^|[^A-Za-z_])(Cached)?NetworkImage(Provider)?)\(' '^lib/design_system/' lib
 
+# --- Shared building blocks -----------------------------------------------
+check ERROR "Raw spinner. Use AppLoader (branded, delayed, accessible)" \
+  'CircularProgressIndicator\(' '^lib/design_system/' lib
+check ERROR "Raw SnackBar/toast. Use AppToast (black, text only)" \
+  'SnackBar\(|showSnackBar\(|Get\.(snackbar|showSnackbar)\(|Fluttertoast|BotToast' '^lib/design_system/' lib
+check ERROR "Date/number formatting outside core/utils. Use context.fmt (AppDateFormatter/AppNumberFormatter)" \
+  '(DateFormat|NumberFormat)(\.|\()' '^lib/core/utils/' lib
+check WARN "DateTime.now() outside core. Inject Clock so time is testable" \
+  'DateTime\.now\(\)' '^lib/core/' lib
+
 # --- Localization ---------------------------------------------------------
 check ERROR "Hardcoded user-facing string. Use context.l10n" \
   "(Text|SelectableText)\(([[:space:]]*const)?[[:space:]]*['\"]|(labelText|hintText|helperText|errorText|tooltip|semanticLabel|semanticsLabel|title|label):[[:space:]]*(const[[:space:]]+)?(Text\()?['\"]" '' $UI

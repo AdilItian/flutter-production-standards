@@ -37,7 +37,7 @@ Create these during foundation (Step 3) so features never invent their own:
 | Inputs | `AppTextField` (label, hint, error, obscure toggle, prefix/suffix), `PasswordField`, `SearchField`, `AppDropdown`, `AppCheckbox`/`AppSwitch` as needed |
 | Display | `AppCard`, `ProfileAvatar` (image/initials/placeholder), `AppBadge`, `AppListTile`, `AppDivider` |
 | Media | `AppNetworkImage` (wraps `cached_network_image`, with skeleton, fade-in, failure-with-retry), `ImageFallback` |
-| Feedback | `LoadingView`, `EmptyState`, `ErrorView` (with retry), `AppSnackbar` helper, `AppSkeleton` |
+| Feedback | `AppLoader`, `NoInternetView`, `ServerUnavailableView`, `ErrorView` (dispatching, with retry), `EmptyState`, `OfflineBanner` / `ServiceBanner`, `SyncStatusChip`, `AppToast`, `AppSkeleton` (details in "Default shared widgets") |
 | Navigation | `AppAppBar`, bottom/rail navigation shell |
 | Overlays | `showAppDialog`, `showAppBottomSheet`, confirm dialog |
 | Layout | `AppScaffold` (safe area, padding, max content width), `AppGap` spacers, `ResponsiveBuilder` |
@@ -107,6 +107,101 @@ extension on AppButtonSize {
 ```
 
 Colors, shape and text style come from `FilledButtonThemeData` in the theme, **not** from the widget. Restyling the app means editing the theme once.
+
+## Default shared widgets (every project gets these in foundation)
+
+Created in Step 3 under `design_system/components/feedback`, before any feature screen, so features never invent their own. All use tokens and theme only, localized text from ARB, and the semantics rules in `accessibility.md`.
+
+| Widget | Purpose |
+|---|---|
+| `AppLoader` | The branded loader (below). Variants: `page`, `inline`, `overlay`, `button`. A bare `CircularProgressIndicator` is not allowed in features. |
+| `NoInternetView` | Full-screen or inline state when the device has no connection and there is nothing cached to show. Illustration, title, short message, **Retry**. |
+| `ServerUnavailableView` | The device is online but the backend is unreachable, erroring or in maintenance. Different wording and illustration from no-internet, with Retry. If offline-first applies: "Your saved data is still available." |
+| `ErrorView` | Generic failure. Takes a failure and **dispatches**: offline → `NoInternetView`, server/timeout → `ServerUnavailableView`, other → generic message. Retry only when retryable. |
+| `EmptyState` | Nothing to show: illustration, title, message, optional action. |
+| `OfflineBanner` / `ServiceBanner` | Thin, non-blocking strip when `BackendStatus` is not online: "You're offline. Showing saved data." / "Service is unavailable. Your changes will sync later." Hides itself on recovery. |
+| `SyncStatusChip` | Pending, syncing, failed counts and last synced time. |
+| `AppToast` | Minimal black, text-only toast (`forms-and-feedback.md`). |
+| `AppSkeleton` | Shimmer placeholder shapes (text lines, avatars, cards, list rows). |
+| `AppNetworkImage` | Cached images with loading and failure states (below). |
+
+**Rule of precedence:** with **no usable cached data**, show the full-screen state (`NoInternetView` / `ServerUnavailableView`). With cached data, show the data plus the banner and never replace it with an error screen. See `resilience.md`.
+
+### NoInternetView and ServerUnavailableView behavior
+
+- Props: `onRetry` (`Future<void> Function()`), `compact` (inline card in a list or section instead of full screen), optional `secondaryAction` (for example "View saved items" when a cache exists).
+- Retry shows a loading state on the button while the retry runs, and is ignored while one is in flight. After a failed retry, give a short toast ("Still offline") and re-enable after about 1 s; never allow rapid-fire taps.
+- **Auto-retry once** when connectivity or `BackendStatus` returns to online, if the screen is still visible, so the user doesn't have to tap.
+- Never show technical details (status codes, exceptions). A "Details" expander is allowed in debug builds only.
+- Announce the state to screen readers (`liveRegion`), and give the retry button a clear label from ARB.
+- Illustrations come from `AppAssets`; they must work in light and dark themes (vector, theme-colored).
+
+### AppLoader: a good loader, not a spinner
+
+Goal: it feels intentional and branded, never janky, and never the default Material spinner on an empty screen.
+
+| Variant | Use | Look |
+|---|---|---|
+| `AppLoader.page()` | First load of a screen when a skeleton does not fit | Centered branded animation (animated brand mark, or three softly pulsing dots in theme colors), optional one-line message below |
+| `AppLoader.inline()` | Inside a section, list footer, search field | Small version of the same animation, 16-24 dp |
+| `AppLoader.overlay()` | Blocking operation (payment confirm). Rare | Dimmed scrim, centered loader card, non-dismissible, with timeout path |
+| `AppLoader.button()` | Inside `PrimaryButton(isLoading: true)` | 18 dp loader in the button's foreground color |
+
+Behavior rules:
+- **Delay and minimum time:** show only after about 150 ms and, once shown, keep at least about 300 ms, so quick loads don't flash. Values are in `AppDurations`.
+- **Escalation:** after about 8 s add "Still working…" (ARB); at the request timeout switch to the error state with retry. No endless loader.
+- **Skeletons first** for known layouts (lists, cards, detail). `AppLoader.page()` is for unknown shapes and short waits.
+- **Brand animation:** if a Lottie/Rive asset exists (`AppAssets.loader`) use it, with the built-in animation as the fallback. The built-in one must not depend on the asset loading.
+- **Reduced motion:** with `MediaQuery.disableAnimationsOf(context)` show a static mark with a subtle opacity change, not a spinning or pulsing animation.
+- **Accessibility:** `Semantics(liveRegion: true, label: context.l10n.commonLoading)`; announce completion through the new content, not a second message.
+- **Theme:** colors from `colorScheme.primary` / `primaryContainer`; correct contrast in dark mode.
+- Performance: one `AnimationController` per visible loader, disposed with the widget; no animation when offscreen (`TickerMode`).
+
+```dart
+// Built-in fallback: three pulsing dots (sketch)
+class PulsingDotsLoader extends StatefulWidget {
+  const PulsingDotsLoader({this.dotSize = AppSizes.loaderDot, super.key});
+  final double dotSize;
+  @override
+  State<PulsingDotsLoader> createState() => _PulsingDotsLoaderState();
+}
+
+class _PulsingDotsLoaderState extends State<PulsingDotsLoader> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: AppDurations.loaderCycle)..repeat();
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.colors.primary;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    return Semantics(
+      liveRegion: true,
+      label: context.l10n.commonLoading,
+      child: ExcludeSemantics(
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          for (var i = 0; i < 3; i++) ...[
+            if (i > 0) AppSpacing.gapXs,
+            reduce
+                ? _Dot(color: color, size: widget.dotSize, scale: 1)
+                : AnimatedBuilder(
+                    animation: _c,
+                    builder: (_, __) {
+                      // staggered 0..1..0 pulse per dot
+                      final t = (_c.value + i * 0.2) % 1.0;
+                      final scale = 0.6 + 0.4 * (1 - (2 * t - 1).abs());
+                      return _Dot(color: color, size: widget.dotSize, scale: scale);
+                    },
+                  ),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+```
+(`_Dot` is a `Transform.scale` around a circle `DecoratedBox`. Durations and sizes are tokens.)
 
 ## Network images: one component, never a raw call
 
@@ -223,7 +318,7 @@ class AsyncValueView<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => value.when(
-        loading: () => const LoadingView(),
+        loading: () => const AppLoader.page(),
         error: (e, _) => ErrorView(failure: e, onRetry: onRetry),
         data: (d) => (isEmpty?.call(d) ?? false) ? (empty ?? const EmptyState()) : data(d),
       );

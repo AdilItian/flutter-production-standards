@@ -60,6 +60,7 @@ skills/                               # the repo publishes several skills
 │   │   ├── networking.md             ├── accessibility.md
 │   │   ├── security.md               ├── forms-and-feedback.md
 │   │   ├── project-identity.md       ├── existing-project-audit.md
+│   │   ├── resilience.md             ├── utilities.md
 │   │   └── code-review-checklist.md
 │   ├── templates/
 │   │   ├── requirements-questionnaire.md  # every discovery question, options, defaults
@@ -104,6 +105,10 @@ Why a `skills/` folder: the Skills.sh installer lets a `SKILL.md` at the repo ro
 | No internet, retries, request throttling | `networking.md`, `error-handling.md` |
 | Offline-first, sync and conflict handling | `networking.md` |
 | One controller only when needed | `state-management.md` |
+| Offline-first by default, with default sync times; app works when the backend is down | `resilience.md`, `networking.md` |
+| Default shared widgets: branded loader, no-internet and server-unavailable views with retry, offline banner | `ui-guidelines.md` |
+| Minimal black, text-only toasts for success and error | `forms-and-feedback.md` |
+| Shared utilities for dates, numbers, strings, time, ids | `utilities.md` |
 | Valid, consistent app ids on every platform, with a default suggestion | `project-identity.md`, `scripts/check_ids.sh` |
 | Existing project: gap analysis written to `docs/skill-audit/` and the user notified | `existing-project-audit.md`, `templates/gap-report.md` |
 

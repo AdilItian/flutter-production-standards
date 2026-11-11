@@ -21,6 +21,8 @@ These hold in every project and every tier. If the user asks to break one, state
 8. **Errors are values at the repository boundary.** Repositories return `Result<T>`; nothing leaks a raw `DioException`.
 9. **Review gate before delivery.** Run `scripts/audit.sh`, walk `references/code-review-checklist.md`, fix, repeat. Do not present work that fails.
 10. **Explain every architectural decision** as `Decision / Why / Trade-off`. Never just assert.
+11. **Offline-first by default, and resilient to a dead backend.** Reads are cache-first, writes are local-first with an outbox, and the app launches, navigates and never hangs or crashes while the backend is down (`references/resilience.md`). Online-only exceptions are decided per feature and recorded.
+12. **Shared building blocks, not one-offs.** Dates, numbers and strings go through `core/utils` (`references/utilities.md`); success and error feedback is the minimal black text-only `AppToast`; loading is `AppLoader`; offline and server-down states are `NoInternetView` and `ServerUnavailableView` (`references/ui-guidelines.md`).
 
 ## Step 0: Detect the mode
 
@@ -75,11 +77,11 @@ For Add feature / Refactor, a 5-line plan is enough. Wait for approval on New ap
 Order matters: each step removes the excuse for hardcoding in the next.
 
 1. Project, flavors/environments, `analysis_options.yaml` (from `templates/`). **Application ids** (`references/project-identity.md`): take the organization domain from discovery, derive the default with `scripts/check_ids.sh --suggest <org> "<App Name>"`, show one proposed id for all selected platforms for confirmation, apply it (`flutter create --org ...` or edit the platform files, with per-flavor suffixes), then run `scripts/check_ids.sh`. Never use `com.example.*`. **Copy `scripts/audit.sh`, `scripts/check_ids.sh` and `scripts/new_feature.sh` from this skill's folder into the project's `scripts/`** (`chmod +x`) so CI and teammates without the skill can run them, and add `scripts/audit.sh` to the CI pipeline (after `flutter analyze`). In later steps, `scripts/...` means the project copy; if it is missing, run the skill's copy with the project root as the argument.
-2. `core/`: config, error (`AppFailure`, `Result`), logging, network client, storage. See `references/networking.md`, `references/error-handling.md`, `references/security.md`.
+2. `core/`: config, error (`AppFailure`, `Result`), logging, network client, storage, `utils` (`references/utilities.md`), connectivity and `BackendStatus`, the sync engine (`references/resilience.md`). See `references/networking.md`, `references/error-handling.md`, `references/security.md`.
 3. `design_system/tokens` and `design_system/theme`, light and dark. See `references/theming-and-constants.md`.
 4. `l10n/` with the confirmed languages. See `references/localization.md`.
 5. `app/` shell: bootstrap, global error handlers, router, app widget. See `references/routing.md`.
-6. Base components (buttons, text field, card, loading/empty/error views, app bar, dialogs, sheets). See `references/ui-guidelines.md`.
+6. Base components and the default shared widgets: `AppLoader`, `NoInternetView`, `ServerUnavailableView`, `ErrorView`, `EmptyState`, `OfflineBanner`, `AppToast`, `AppNetworkImage`, buttons, text field, card, app bar, dialogs, sheets. See `references/ui-guidelines.md`.
 7. Then features.
 
 ## Step 4: Build each feature as a vertical slice
@@ -127,6 +129,8 @@ Read only what the current step needs. Do not preload all of them.
 | Add a controller / notifier / bloc / GetX controller | `references/state-management.md` |
 | Define a model, parse JSON, map between layers | `references/data-models.md` |
 | Handle errors, logging, retries, user-facing error text | `references/error-handling.md` |
+| Anything that reads or writes server data, app startup, auth/session, sync, or behavior when the backend is slow or down | `references/resilience.md` |
+| Format a date, number, currency or string; read the time; generate an id; debounce; write any helper | `references/utilities.md` |
 | Build a form, validation, loading indicator, or any success/info/warning message | `references/forms-and-feedback.md` |
 | Add offline support, sync, request throttling, or decide how many repositories/datasources to make | `references/networking.md` |
 | Name something, split a file, set lint rules | `references/code-standards.md` |
@@ -149,6 +153,9 @@ Use these only after the user says "defaults" or "you decide", and record them a
 | Models | `json_serializable` + `freezed` (or hand-written immutable classes for tiny apps) |
 | Local DB | drift for relational data, `shared_preferences` for flags only, `flutter_secure_storage` for secrets |
 | Localization | gen-l10n with ARB |
+| Offline | **Offline-first by default**: cache-first reads, local-first writes with an outbox, `SyncPolicy` presets (`standard`: 5 min stale, 15 min foreground pull). Online-only exceptions recorded in the ADR |
+| Feedback and states | `AppToast` (black, text only), `AppLoader`, `NoInternetView` / `ServerUnavailableView` / `OfflineBanner` |
+| Utilities | `core/utils`: `AppDateFormatter`, `AppNumberFormatter`, `StringUtils`, `Validators`, `Clock`, `IdGenerator`, `Debouncer` |
 | Network images | `cached_network_image` behind `AppNetworkImage` (skeleton loading, failure state with retry) |
 | Theme | Material 3, light + dark + system, seed-based `ColorScheme` or brand-supplied scheme |
 | Environments | `dev` / `staging` / `prod` via `--dart-define-from-file` |
@@ -164,5 +171,6 @@ Summarized so you can explain them if challenged. Full reasoning is in the linke
 - **`AppStrings` is replaced by gen-l10n** for user-facing text; a hand-written strings class cannot be translated or pluralized. (`localization.md`)
 - **Widgets read semantic theme roles, not `AppColors.blue500`.** A raw palette reference silently breaks dark mode. (`theming-and-constants.md`)
 - **Routing uses GetX navigation** (`AppRoutes` + `AppPages`) by the owner's choice. The compromise for losing compile-time typed routes is string-free navigation through `AppNavigation` and an audit rule. **GetX for *state* is supported but not recommended** for new projects; Riverpod stays the default. (`routing.md`, `state-management.md`)
+- **Offline-first is the default, not an option.** A mobile app's backend is unreliable by nature; making resilience the default removes the most common class of "works on my Wi-Fi" bugs. Opting out is a recorded decision. (`resilience.md`)
 - **Rules are enforced by tooling, not prose.** `scripts/audit.sh` and lints catch what a checklist forgets. (`code-review-checklist.md`)
 - **Promote to `shared/` on the second use**, not the first guess. Design-system atoms are exempt: they are shared from day one.

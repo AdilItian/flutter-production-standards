@@ -21,6 +21,8 @@ abstract final class AppColors {
   static const Color success = Color(0xFF2F9E44);
   static const Color warning = Color(0xFFF08C00);
   static const Color error = Color(0xFFE03131);
+  static const Color toastBackground = Color(0xFF000000); // dark theme may use a near-black such as 0xFF1C1C1E
+  static const Color onToast = Color(0xFFFFFFFF);
   // ...neutrals
 }
 
@@ -51,6 +53,7 @@ abstract final class AppSizes {
   static const double buttonHeightSm = 36, buttonHeightMd = 48, buttonHeightLg = 56;
   static const double minTapTarget = 48;
   static const double strokeThin = 2;
+  static const double loaderDot = 10;
   static const double maxContentWidth = 640;
   static const double avatarSm = 32, avatarMd = 48, avatarLg = 96;
 }
@@ -62,7 +65,12 @@ abstract final class AppDurations {
   static const Duration normal = Duration(milliseconds: 300);
   static const Duration slow = Duration(milliseconds: 500);
   static const Duration debounce = Duration(milliseconds: 350);
-  static const Duration snackbar = Duration(seconds: 4);
+  static const Duration toastShort = Duration(milliseconds: 2500);
+  static const Duration toast = Duration(seconds: 4);
+  static const Duration loaderDelay = Duration(milliseconds: 150);    // show a loader only after this
+  static const Duration loaderMinShow = Duration(milliseconds: 300);  // then keep it at least this long
+  static const Duration loaderCycle = Duration(milliseconds: 1200);
+  static const Duration slowLoadHint = Duration(seconds: 8);          // "Still working…"
 }
 
 // design_system/tokens/app_elevation.dart
