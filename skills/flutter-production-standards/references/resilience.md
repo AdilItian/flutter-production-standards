@@ -14,7 +14,7 @@ Unless the user opts out for a specific feature (recorded in the ADR), every fea
 | **Writes** (user-created or user-edited data) | Local first. Write to the local DB and the outbox in one transaction, show the change at once, mark it pending, sync later. |
 | **Local database** | Required by default (drift unless the project chose another). `shared_preferences` is not a database. |
 | **Freshness** | Each entity has a `SyncPolicy` with sensible defaults (below). |
-| **Status** | Pending, failed and last-synced states are visible (`SyncStatusChip`, `OfflineBanner`). |
+| **Status** | Pending, failed and last-synced states are visible (`SyncStatusChip`, `ConnectivityChip`). |
 
 **Online-only exceptions** (decide per feature, record in the ADR): first-time sign-in and sign-up, payments, anything whose result only the server can know (availability, live prices), search over data that was never cached, destructive operations the user must see confirmed. These show a clear "needs connection" state with retry; they never freeze or crash.
 
@@ -50,13 +50,14 @@ const syncPolicies = <String, SyncPolicy>{
 |---|---|
 | **Startup** | Never blocks on the network. The splash waits only for local init (secure storage, DB, env). Open on cached or last-known state. Remote config and feature flags: bundled defaults plus last cached values, fetched in the background with a short timeout. |
 | **Session** | A token is valid or expired by its local expiry, not by calling the server. Network or 5xx failure during refresh is not a sign-out: keep the session, mark it "needs revalidation", retry later. Only an explicit rejection (`401`/`invalid_grant` on refresh) signs the user out. |
-| **Reads** | Show cached data with the offline or service banner. If there is no cache (first run): `NoInternetView` or `ServerUnavailableView` with retry. Never a blank screen or an endless loader. |
+| **Reads** | Show cached data with the connectivity chip. If there is no cache (first run): `NoInternetView` or `ServerUnavailableView` with retry. Never a blank screen or an endless loader. |
 | **Writes** | Accepted locally, queued, shown as pending. Toast: "Saved. Will sync when you're online." |
 | **Navigation** | Every screen opens. Screens that need the server show an inline unavailable state with retry, not an exception. |
 | **Timeouts** | Every request has connect, send and receive timeouts (`ApiConstants`). No infinite spinner: at about 8 s show "Still working…", at the timeout show the error state. |
 | **Failure containment** | The circuit breaker (`RequestGate`) fails fast after repeated failures, so a dead backend doesn't make every screen wait for timeouts. |
 | **Bad responses** | HTML error pages from proxies or CDNs, empty bodies and malformed JSON become `ServerFailure` / `ParsingFailure`, never an uncaught exception. Check the content type before parsing. |
-| **Recovery** | When the backend returns: flush the outbox, refresh visible screens once, clear the banner. No toast storm, no duplicated sends (idempotency keys). |
+| **Recovery** | When the backend returns: flush the outbox, refresh visible screens once, clear the chip. No toast storm, no duplicated sends (idempotency keys). |
+| **UI** | Offline and service problems are shown with a small chip and one calm notice, never a blocking or layout-shifting UI (`ui-guidelines.md`, "Offline UI never blocks the app"). |
 | **Honesty** | The UI never claims data is fresh or an action is confirmed when it is not. Show "last updated" and pending states. |
 
 ### BackendStatus
@@ -71,14 +72,14 @@ abstract interface class BackendStatusService {
   BackendStatus get current;
 }
 ```
-Derived from `ConnectivityService` (device network) plus request outcomes (success, timeouts, 5xx, breaker state). While not `online`, a lightweight probe (cheapest endpoint, exponential backoff from 5 s up to 2 min) checks for recovery; it must not hammer a struggling server. The design system listens to it for `OfflineBanner` / `ServiceBanner`; sync listens to it to pause and resume.
+Derived from `ConnectivityService` (device network) plus request outcomes (success, timeouts, 5xx, breaker state). While not `online`, a lightweight probe (cheapest endpoint, exponential backoff from 5 s up to 2 min) checks for recovery; it must not hammer a struggling server. The design system listens to it for `ConnectivityChip`; sync listens to it to pause and resume.
 
 Failure mapping to views (`ErrorView` dispatches automatically):
 
 | Failure | Shown when there is **no** usable cache | Shown when cache exists |
 |---|---|---|
-| `OfflineFailure` | `NoInternetView` with retry | Cached content + offline banner |
-| `ServerFailure`, `TimeoutFailure`, breaker open | `ServerUnavailableView` ("We can't reach our servers") with retry | Cached content + service banner |
+| `OfflineFailure` | `NoInternetView` with retry | Cached content + chip |
+| `ServerFailure`, `TimeoutFailure`, breaker open | `ServerUnavailableView` ("We can't reach our servers") with retry | Cached content + chip |
 | `UnauthorizedFailure` after refresh failed explicitly | Sign-in required view | Same |
 | Others | `ErrorView` with retry if retryable | Toast, content stays |
 
@@ -92,14 +93,14 @@ A `FakeBackend` (or the mock server's chaos switches) supports these modes, and 
 
 | Mode | Assert |
 |---|---|
-| Down (connection refused / DNS failure) | App launches; cached content visible; writes queue; banner appears; no crash |
+| Down (connection refused / DNS failure) | App launches; cached content visible; writes queue; chip and a one-time notice appear; no crash |
 | Offline (device network off) | Same, plus `NoInternetView` on first-run screens |
 | Slow (responses at 2× timeout) | Spinner then timeout state; no hang; UI stays responsive |
 | 5xx / 503 with Retry-After | Breaker opens; cooldown respected; cached content stays |
 | Flapping (alternates up/down) | No duplicate sends (idempotency), no toast storm, sync converges |
 | Malformed 200 / HTML error page | `ParsingFailure`/`ServerFailure`, no crash |
 | Expired token + backend down | User stays signed in; revalidates after recovery |
-| Recovery | Outbox flushes in order; visible screens refresh once; banner clears |
+| Recovery | Outbox flushes in order; visible screens refresh once; chip clears |
 
 Cold start with an empty cache and the backend down is a required test: it must show the right full-screen state with working retry.
 
@@ -109,5 +110,5 @@ Cold start with an empty cache and the backend down is a required test: it must 
 - [ ] Writes use the local DB plus outbox (or are listed as online-only exceptions in the ADR)
 - [ ] Startup makes no blocking network call
 - [ ] A network failure never signs the user out
-- [ ] Banner, pending and failed states exist; no infinite loaders; timeouts set
+- [ ] Chip, pending and failed states exist; no infinite loaders; timeouts set
 - [ ] Backend-down tests pass, including cold start with an empty cache

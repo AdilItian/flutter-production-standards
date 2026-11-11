@@ -85,7 +85,7 @@ Order matters: each step removes the excuse for hardcoding in the next.
 3. `design_system/tokens` and `design_system/theme`, light and dark. See `references/theming-and-constants.md`.
 4. `l10n/` with the confirmed languages. See `references/localization.md`.
 5. `app/` shell: bootstrap, global error handlers, router, app widget. See `references/routing.md`.
-6. Base components and the default shared widgets: `AppLoader`, `NoInternetView`, `ServerUnavailableView`, `ErrorView`, `EmptyState`, `OfflineBanner`, `AppToast`, `AppNetworkImage`, buttons, text field, card, app bar, dialogs, sheets. See `references/ui-guidelines.md`.
+6. Base components and the default shared widgets: `AppLoader`, `NoInternetView`, `ServerUnavailableView`, `ErrorView`, `EmptyState`, `ConnectivityChip`, `AppToast`, `AppNetworkImage`, buttons, text field, card, app bar, dialogs, sheets. See `references/ui-guidelines.md`.
 7. Then features.
 
 ## Step 4: Build each feature as a vertical slice
@@ -158,7 +158,7 @@ Use these only after the user says "defaults" or "you decide", and record them a
 | Local DB | drift for relational data, `shared_preferences` for flags only, `flutter_secure_storage` for secrets |
 | Localization | gen-l10n with ARB |
 | Offline | **Offline-first by default**: cache-first reads, local-first writes with an outbox, `SyncPolicy` presets (`standard`: 5 min stale, 15 min foreground pull). Online-only exceptions recorded in the ADR |
-| Feedback and states | `AppToast` (black, text only), `AppLoader`, `NoInternetView` / `ServerUnavailableView` / `OfflineBanner` |
+| Feedback and states | `AppToast` (black, text only), `AppLoader`, `NoInternetView` / `ServerUnavailableView` / `ConnectivityChip` |
 | Utilities | `core/utils`: `AppDateFormatter`, `AppNumberFormatter`, `StringUtils`, `Validators`, `Clock`, `IdGenerator`, `Debouncer` |
 | Network images | `cached_network_image` behind `AppNetworkImage` (skeleton loading, failure state with retry) |
 | Theme | Material 3, light + dark + system, seed-based `ColorScheme` or brand-supplied scheme |

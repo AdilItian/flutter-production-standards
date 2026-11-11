@@ -37,7 +37,7 @@ Create these during foundation (Step 3) so features never invent their own:
 | Inputs | `AppTextField` (label, hint, error, obscure toggle, prefix/suffix), `PasswordField`, `SearchField`, `AppDropdown`, `AppCheckbox`/`AppSwitch` as needed |
 | Display | `AppCard`, `ProfileAvatar` (image/initials/placeholder), `AppBadge`, `AppListTile`, `AppDivider` |
 | Media | `AppNetworkImage` (wraps `cached_network_image`, with skeleton, fade-in, failure-with-retry), `ImageFallback` |
-| Feedback | `AppLoader`, `NoInternetView`, `ServerUnavailableView`, `ErrorView` (dispatching, with retry), `EmptyState`, `OfflineBanner` / `ServiceBanner`, `SyncStatusChip`, `AppToast`, `AppSkeleton` (details in "Default shared widgets") |
+| Feedback | `AppLoader`, `NoInternetView`, `ServerUnavailableView`, `ErrorView` (dispatching, with retry), `EmptyState`, `ConnectivityChip`, `SyncStatusChip`, `AppToast`, `AppSkeleton` (details in "Default shared widgets") |
 | Navigation | `AppAppBar`, bottom/rail navigation shell |
 | Overlays | `showAppDialog`, `showAppBottomSheet`, confirm dialog |
 | Layout | `AppScaffold` (safe area, padding, max content width), `AppGap` spacers, `ResponsiveBuilder` |
@@ -119,16 +119,52 @@ Created in Step 3 under `design_system/components/feedback`, before any feature 
 | `ServerUnavailableView` | The device is online but the backend is unreachable, erroring or in maintenance. Different wording and illustration from no-internet, with Retry. If offline-first applies: "Your saved data is still available." |
 | `ErrorView` | Generic failure. Takes a failure and **dispatches**: offline → `NoInternetView`, server/timeout → `ServerUnavailableView`, other → generic message. Retry only when retryable. |
 | `EmptyState` | Nothing to show: illustration, title, message, optional action. |
-| `OfflineBanner` / `ServiceBanner` | Thin, non-blocking strip when `BackendStatus` is not online: "You're offline. Showing saved data." / "Service is unavailable. Your changes will sync later." Hides itself on recovery. |
+| `ConnectivityChip` | Small, tappable status chip in the app bar while offline, service-unavailable or syncing. Never a banner strip, dialog or overlay. Spec in "Offline UI never blocks the app". |
 | `SyncStatusChip` | Pending, syncing, failed counts and last synced time. |
 | `AppToast` | Minimal black, text-only toast (`forms-and-feedback.md`). |
 | `AppSkeleton` | Shimmer placeholder shapes (text lines, avatars, cards, list rows). |
 | `AppNetworkImage` | Cached images with loading and failure states (below). |
 
-**Rule of precedence:** with **no usable cached data**, show the full-screen state (`NoInternetView` / `ServerUnavailableView`). With cached data, show the data plus the banner and never replace it with an error screen. See `resilience.md`.
+**Rule of precedence:** with **no usable cached data**, show the full-screen state (`NoInternetView` / `ServerUnavailableView`). With cached data, show the data plus the chip and never replace it with an error screen. See `resilience.md`.
+
+### Offline UI never blocks the app
+
+Being offline is a normal state, not an emergency. The offline UI informs; it never interrupts, covers, shifts or blocks anything.
+
+**Never:** a modal dialog, a full-screen takeover while cached data exists, a blocking route, a banner strip that pushes content down, a toast on every failed request, a disabled navigation bar, a keyboard-stealing prompt, an infinite spinner.
+
+| Piece | Behavior |
+|---|---|
+| **One-time notice** | When the app has been offline (or the service unreachable) for about 2 s, show a single `AppToast`: "You're offline. Showing saved data." When it recovers and stays up for about 1 s: "Back online." Once per transition, never repeated. Brief drops under 2 s show nothing (no flicker). |
+| **Persistent indicator** | `ConnectivityChip`: a small chip with an icon and a short word ("Offline", "Syncing", "3 pending"), placed by `AppAppBar` as a trailing action. It fades in and out (`AnimatedSwitcher`) inside its own slot, so it does not shift page content. Screens without an app bar rely on the notice and inline states. |
+| **Tap for details** | Tapping the chip opens a small bottom sheet (user-initiated, dismissible): status in plain words, "Showing saved data, last updated 5 min ago", pending changes count, **Retry now / Sync now**, and what still works offline. |
+| **Content area** | Keeps working. The data is shown as usual, from the cache. Rows or items with a pending change show a small "waiting to sync" glyph. |
+| **Actions that need the server** | Stay visible. Tapping one shows an `AppToast` ("Needs a connection") or, for a primary action such as payment, the button is disabled with a short visible reason under it ("Requires a connection"). Never a silent disabled button. Writes that can be saved offline simply work and say "Saved. Will sync when you're online." |
+| **No cached data** | `NoInternetView` / `ServerUnavailableView` fills the screen's content area only. The app bar, back, the bottom navigation and other tabs stay fully usable. |
+| **Recovery** | Chip disappears, the pending queue flushes in the background, visible screens refresh once, quietly. No dialog, no forced refresh while the user is typing or scrolling (apply refreshed data when the list is at the top or on the next idle moment). |
+
+Convenience and quality rules:
+- Debounce both directions (2 s to appear, 1 s to clear), and keep the chip visible at least about 2 s once shown.
+- **Do not steal focus or move the keyboard.** The chip and sheet never take focus from a text field the user is typing in.
+- Respect insets and reduced motion (a fade only, no sliding or bouncing); at least a 48 dp tap area for the chip; works in dark mode and RTL (`AlignmentDirectional`).
+- Accessibility: announce the transition politely once (`liveRegion`, not an assertive alert); the chip has a label such as "Offline. Double tap for details."
+- Wording is short and calm. "You're offline" and "Showing saved data", never "Error", "Failed" or "No connection!!".
+- Everything is driven by `BackendStatus` (`resilience.md`) from one place in the app shell, so individual screens never build their own offline UI.
+
+```dart
+// app shell: the only place that reacts globally to connectivity changes
+class ConnectivityNotifier extends StatefulWidget { /* wraps the app child */ }
+// - listens to BackendStatus.changes
+// - debounces: offline notice after AppDurations.offlineNoticeDelay (2 s), recovery after AppDurations.onlineNoticeDelay (1 s)
+// - calls AppToast.info(l10n.offlineNotice) / AppToast.info(l10n.backOnline) once per transition
+// ConnectivityChip (in AppAppBar) watches the same stream and animates in/out in its own slot.
+```
+
+Tests: the chip appears only after the debounce; a 1-second drop shows nothing; the page layout does not change when the chip appears (compare the size and position of a child before and after); taps outside the chip are never intercepted; an open keyboard stays open; the notice appears once per transition; the sheet retry calls sync once.
 
 ### NoInternetView and ServerUnavailableView behavior
 
+- **Placement:** fills the screen's content area, never the whole window: the app bar, back button, bottom navigation and other tabs stay usable. `compact` is an inline card inside a section.
 - Props: `onRetry` (`Future<void> Function()`), `compact` (inline card in a list or section instead of full screen), optional `secondaryAction` (for example "View saved items" when a cache exists).
 - Retry shows a loading state on the button while the retry runs, and is ignored while one is in flight. After a failed retry, give a short toast ("Still offline") and re-enable after about 1 s; never allow rapid-fire taps.
 - **Auto-retry once** when connectivity or `BackendStatus` returns to online, if the screen is still visible, so the user doesn't have to tap.

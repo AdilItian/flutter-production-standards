@@ -119,7 +119,7 @@ Why a `skills/` folder: the Skills.sh installer lets a `SKILL.md` at the repo ro
 | Offline-first, sync and conflict handling | `networking.md` |
 | One controller only when needed | `state-management.md` |
 | Offline-first by default, with default sync times; app works when the backend is down | `resilience.md`, `networking.md` |
-| Default shared widgets: branded loader, no-internet and server-unavailable views with retry, offline banner | `ui-guidelines.md` |
+| Default shared widgets: branded loader, no-internet and server-unavailable views with retry, non-blocking connectivity chip | `ui-guidelines.md` |
 | Minimal black, text-only toasts for success and error | `forms-and-feedback.md` |
 | Shared utilities for dates, numbers, strings, time, ids | `utilities.md` |
 | Valid, consistent app ids on every platform, with a default suggestion | `project-identity.md`, `scripts/check_ids.sh` |

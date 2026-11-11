@@ -70,6 +70,8 @@ abstract final class AppDurations {
   static const Duration loaderDelay = Duration(milliseconds: 150);    // show a loader only after this
   static const Duration loaderMinShow = Duration(milliseconds: 300);  // then keep it at least this long
   static const Duration loaderCycle = Duration(milliseconds: 1200);
+  static const Duration offlineNoticeDelay = Duration(seconds: 2);  // offline for this long before telling the user
+  static const Duration onlineNoticeDelay = Duration(seconds: 1);   // online for this long before clearing
   static const Duration slowLoadHint = Duration(seconds: 8);          // "Still working…"
 }
 

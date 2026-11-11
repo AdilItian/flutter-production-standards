@@ -148,7 +148,7 @@ Never retry on `ValidationFailure`, `Unauthorized` (after one refresh), `Forbidd
 
 ## Error UX rules
 
-- Inline/field errors for validation; non-blocking snackbar for background failures; full `ErrorView` when there is nothing to show; keep stale content visible with a banner when a refresh fails.
+- Inline/field errors for validation; non-blocking snackbar for background failures; full `ErrorView` when there is nothing to show; keep stale content visible, with the connectivity chip or a toast, when a refresh fails.
 - Preserve user input on failure. Never clear a form because a submit failed.
 - Destructive or financial operations: say clearly whether the action happened ("Payment was not completed. You have not been charged." only if true).
 - Do not show errors for `CancelledFailure`.

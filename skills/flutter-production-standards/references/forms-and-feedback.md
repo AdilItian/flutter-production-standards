@@ -94,7 +94,7 @@ snackBarTheme: SnackBarThemeData(
 - Every message is an ARB key (`localization.md`); failure text comes from the failure-to-message mapping (`error-handling.md`).
 - Trigger toasts from a listener on a one-shot event, never from `build` (`state-management.md`).
 - Never claim success before the operation is confirmed (optimistic UI only with a rollback path).
-- Repeated identical failures (a retry loop, many background syncs failing) show one toast, then the offline banner. Never a toast storm.
+- Repeated identical failures (a retry loop, many background syncs failing) show one toast, then only the chip. Never a toast storm.
 
 ## Forms
 

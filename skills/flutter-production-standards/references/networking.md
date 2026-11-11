@@ -254,7 +254,7 @@ Every cache has: a key, a TTL or invalidation trigger, a size bound, and is clea
 
 | Level | Design |
 |---|---|
-| Read cache | Repository serves local on failure/offline; UI shows a "last updated" stamp and offline banner (connectivity from a `ConnectivityService` interface). |
+| Read cache | Repository serves local on failure/offline; UI shows a "last updated" stamp and the connectivity chip (connectivity from a `ConnectivityService` interface). |
 | Offline writes | **Outbox pattern**: write goes to local DB with `pending` status and a client-generated id, an outbox worker replays in order with retry/backoff, reconciles server ids, and surfaces failures. Mutations carry idempotency keys. |
 | Full sync | Add per-record `updatedAt`/version, a conflict policy per entity (last-write-wins, server-wins, merge, or ask the user), tombstones for deletes, and migration tests. Decide the conflict policy with the user; do not guess. |
 
@@ -263,8 +263,8 @@ Every cache has: a key, a TTL or invalidation trigger, a size bound, and is clea
 Connectivity is a hint, not truth: a `connectionError` from a real request is authoritative. Do not block requests on a connectivity flag.
 
 **No-internet UX (all offline levels):**
-- A design-system `OfflineBanner` appears when `ConnectivityService` reports offline or a request fails with `OfflineFailure`; it is non-blocking and announces itself to screen readers.
-- Screens that failed because of `OfflineFailure` show `ErrorView` with retry (or stale content plus the banner). When connectivity returns, they refresh automatically once (listen to the connectivity stream in the state holder), and sync runs if offline writes are on.
+- A design-system `ConnectivityChip` appears when `ConnectivityService` reports offline or a request fails with `OfflineFailure`; it is a small, non-blocking chip plus a one-time notice, never a banner strip or dialog (`ui-guidelines.md`, "Offline UI never blocks the app").
+- Screens that failed because of `OfflineFailure` show `ErrorView` with retry (or stale content plus the chip). When connectivity returns, they refresh automatically once (listen to the connectivity stream in the state holder), and sync runs if offline writes are on.
 - Retry rules are in `error-handling.md`.
 
 ## Offline-first repository (when "full offline with sync" is chosen)

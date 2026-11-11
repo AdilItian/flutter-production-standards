@@ -54,13 +54,14 @@ Severity: **Blocker** = must fix before delivery. **Major** = fix unless the use
 - [ ] Screen composed from components; `build` short; no `_buildX()` widget helper methods
 - [ ] Loading, content, empty, error (and offline) states all rendered
 - [ ] Side effects not triggered from `build`
-- [ ] Default shared widgets are used: `AppLoader` (no raw spinner), `NoInternetView` / `ServerUnavailableView` / `ErrorView` with working retry, `OfflineBanner`, `EmptyState`; full-screen error states only when there is no cached data
+- [ ] Default shared widgets are used: `AppLoader` (no raw spinner), `NoInternetView` / `ServerUnavailableView` / `ErrorView` with working retry, `ConnectivityChip`, `EmptyState`; full-screen error states only when there is no cached data
 - [ ] Dates, numbers, currency and strings use `core/utils` (`context.fmt`, `StringUtils`); no inline `DateFormat` patterns, no direct `DateTime.now()` outside `core`
 - [ ] Loading uses the standard pattern (skeleton / refresh keeps data / in-button spinner), never a bare `CircularProgressIndicator`
 - [ ] Every remote image goes through `AppNetworkImage` (cached, sized, skeleton loading, failure with retry, semantics); no direct `Image.network` / `NetworkImage` / `CachedNetworkImage` in features
 - [ ] Success, info and warning feedback go through `AppToast` (black, text only, ARB messages); no ad hoc `SnackBar`, `Get.snackbar` or toast packages
 - [ ] Forms follow the validation timing rules, use typed `FieldError`s, keep submit enabled until submitting, focus the first error, preserve input on failure
-- [ ] Offline and retry UX present: `OfflineBanner`, retry only for retryable failures, auto-refresh on reconnect
+- [ ] Offline UI never blocks: no dialog, no full-screen takeover while cached data exists, no layout-shifting strip; one debounced notice per transition; `ConnectivityChip` with a details sheet; navigation and typing unaffected
+- [ ] Offline and retry UX present: `ConnectivityChip`, retry only for retryable failures, auto-refresh on reconnect
 
 ## D. No magic values (Blocker)
 
