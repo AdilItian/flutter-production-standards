@@ -32,6 +32,8 @@ Type `/` in Claude Code to see them. `/flutter-help` prints this table.
 | `/flutter-ids [suggest <org> "App Name"]` | Validate application ids on every platform, or suggest a default |
 | `/flutter-production-standards` | Open-ended: apply the standards to whatever you ask |
 
+**Tip for reliability:** whether plain-language requests trigger a skill is up to the model. For guaranteed behavior start new apps with `/flutter-new-app` and new features with `/flutter-new-feature`. New projects also get a `CLAUDE.md` from the skill that tells later sessions to load it.
+
 The commands are only started by you (they never trigger on their own). The main skill still triggers automatically when you ask for Flutter work in plain language. Slash commands are a Claude Code feature; in other agents the same skills load by name or description.
 
 ## Use

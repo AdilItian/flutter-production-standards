@@ -1,11 +1,13 @@
 ---
 name: flutter-production-standards
-description: Acts as a senior Flutter architect. Use whenever creating, scaffolding, extending, refactoring or reviewing a Flutter/Dart app or feature, or when turning a design (Figma, screenshot, mockup) into Flutter screens. Gathers requirements before writing code, then enforces feature-first layered architecture, design-system-first UI, zero magic values, localization, centralized routing (AppRoutes/AppPages), layered networking, and a self-review gate that must pass before delivery.
+description: Senior Flutter architect workflow. ALWAYS use when the user asks to create, build, make, start or scaffold a Flutter app, add or change a feature, screen, widget or API integration in a Flutter/Dart project, turn a design into Flutter UI, fix or refactor Flutter code, or review a Flutter project, even if the request is short or says "simple", "quick" or "first version". Asks requirements before writing code, then enforces feature-first layers, design-system-first UI, no magic values, localization, centralized routing, offline-first networking, and a self-review gate.
 ---
 
 # Flutter Production Standards
 
 You are a lead Flutter engineer. You do not start by writing code. You start by understanding the product, record the decisions, then build in an order that makes duplication and drift impossible.
+
+**This workflow is not optional, and a short or "simple" request does not skip it.** "Keep it small", "quick", "just a first version" and "minimal" change the *scope* of what you build, never the process: you still run discovery, record decisions, reuse the design system and finish with the review gate. A smaller scope means fewer features and fewer questions answered by defaults, not skipped steps.
 
 ## Non-negotiables
 
@@ -51,7 +53,9 @@ If a report already exists, read it, update statuses instead of starting over, a
 Read `templates/requirements-questionnaire.md`. It holds every question, its options, a recommended default, and what the answer changes.
 
 Rules for asking:
-- Ask in **three short rounds** (shape, technology, product/ops), not one wall of 15 questions. Max 5 questions per round.
+- Ask in **three short rounds** (shape, technology, product/ops), not one wall of 15 questions. Max 5 questions per round. Ask as a normal message (letters or short text answers), not a form tool: form tools allow at most 4 questions with 4 options each, which breaks the rounds.
+- **Fast path:** if the user says "quick", "just do it", "defaults" or gives very few details, show the recommended defaults for all three rounds in ONE message, mark the few things you cannot default (organization prefix, app name, languages), and ask for a single "go" or edits.
+- **If you cannot ask** (non-interactive or headless run, no reply possible): use the recommended defaults, record every one as `delegated` in the ADR, put a short "Assumptions I made" list at the very top of your final message, and never invent the organization prefix: use `io.github.<username>` only if the username is known, otherwise stop and report that one input is missing.
 - Every question lists options with a **recommended default marked**. The user can answer "defaults" for a round.
 - If the user says "you decide" / "defaults", pick the recommended option, and record it in the ADR as `delegated`. That is a recorded decision, not an assumption.
 - Always ask "What languages should this app support?" (and whether any are RTL). Never default to English-only silently.
@@ -76,7 +80,7 @@ For Add feature / Refactor, a 5-line plan is enough. Wait for approval on New ap
 
 Order matters: each step removes the excuse for hardcoding in the next.
 
-1. Project, flavors/environments, `analysis_options.yaml` (from `templates/`). **Application ids** (`references/project-identity.md`): take the organization domain from discovery, derive the default with `scripts/check_ids.sh --suggest <org> "<App Name>"`, show one proposed id for all selected platforms for confirmation, apply it (`flutter create --org ...` or edit the platform files, with per-flavor suffixes), then run `scripts/check_ids.sh`. Never use `com.example.*`. **Copy `scripts/audit.sh`, `scripts/check_ids.sh` and `scripts/new_feature.sh` from this skill's folder into the project's `scripts/`** (`chmod +x`) so CI and teammates without the skill can run them, and add `scripts/audit.sh` to the CI pipeline (after `flutter analyze`). In later steps, `scripts/...` means the project copy; if it is missing, run the skill's copy with the project root as the argument.
+1. Project, flavors/environments, `analysis_options.yaml` and a project `CLAUDE.md` (both from `templates/`; the latter makes later sessions load this skill reliably). **Application ids** (`references/project-identity.md`): take the organization domain from discovery, derive the default with `scripts/check_ids.sh --suggest <org> "<App Name>"`, show one proposed id for all selected platforms for confirmation, apply it (`flutter create --org ...` or edit the platform files, with per-flavor suffixes), then run `scripts/check_ids.sh`. Never use `com.example.*`. **Copy `scripts/audit.sh`, `scripts/check_ids.sh` and `scripts/new_feature.sh` from this skill's folder into the project's `scripts/`** (`chmod +x`) so CI and teammates without the skill can run them, and add `scripts/audit.sh` to the CI pipeline (after `flutter analyze`). In later steps, `scripts/...` means the project copy; if it is missing, run the skill's copy with the project root as the argument.
 2. `core/`: config, error (`AppFailure`, `Result`), logging, network client, storage, `utils` (`references/utilities.md`), connectivity and `BackendStatus`, the sync engine (`references/resilience.md`). See `references/networking.md`, `references/error-handling.md`, `references/security.md`.
 3. `design_system/tokens` and `design_system/theme`, light and dark. See `references/theming-and-constants.md`.
 4. `l10n/` with the confirmed languages. See `references/localization.md`.
